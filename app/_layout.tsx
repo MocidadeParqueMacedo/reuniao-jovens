@@ -19,12 +19,14 @@ const queryClient = new QueryClient({
 function RootLayoutContent() {
   const { autenticado } = useApp();
 
+  console.log('🔄 RootLayoutContent - autenticado:', autenticado);
+
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      {!autenticado ? (
-        <Stack.Screen name="login" options={{ headerShown: false }} />
-      ) : (
+      {autenticado ? (
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      ) : (
+        <Stack.Screen name="login" options={{ headerShown: false }} />
       )}
     </Stack>
   );
