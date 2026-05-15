@@ -1,9 +1,15 @@
 import * as WebBrowser from "expo-web-browser";
 import * as Google from "expo-auth-session/providers/google";
 import { useEffect, useRef, useState } from "react";
+import { Platform } from "react-native";
 
 // Configure your Google OAuth credentials here
 const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || "";
+
+// Completar AuthSession apenas em plataformas nativas
+if (Platform.OS !== "web") {
+  WebBrowser.maybeCompleteAuthSession();
+}
 
 export function useGoogleAuth() {
   const [userInfo, setUserInfo] = useState<any>(null);
