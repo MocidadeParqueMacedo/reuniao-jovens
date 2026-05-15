@@ -4,7 +4,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '@/lib/theme-provider';
-import { AppProvider } from '@/lib/app-context';
+import { AppProvider, useApp } from '@/lib/app-context';
 import { Toast } from '@/components/Toast';
 import { OfflineNotice } from '@/components/OfflineNotice';
 import '../global.css';
@@ -16,6 +16,20 @@ const queryClient = new QueryClient({
   },
 });
 
+function RootLayoutContent() {
+  const { autenticado } = useApp();
+
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      {!autenticado ? (
+        <Stack.Screen name="login" options={{ headerShown: false }} />
+      ) : (
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      )}
+    </Stack>
+  );
+}
+
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -23,10 +37,7 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <ThemeProvider>
             <AppProvider>
-              <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="login" options={{ headerShown: false }} />
-                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              </Stack>
+              <RootLayoutContent />
               <OfflineNotice />
               <Toast />
               <StatusBar style="light" />
