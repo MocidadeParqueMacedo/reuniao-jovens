@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import * as Notifications from 'expo-notifications';
 import { DB, Member, Meeting, CalEvent, Visitor, Visita, Ata, Versinho, ensureNextSundayMeeting, checkThreeConsecutiveAbsences } from './db';
-import { loadCurrentUser, loadRegisteredUsers, saveRegisteredUsers } from './auth-persistence';
+import { loadCurrentUser, loadRegisteredUsers, saveRegisteredUsers, saveCurrentUser } from './auth-persistence';
 import { ADMIN_EMAIL, ADMIN_PASSWORD } from './auth-store';
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
@@ -107,7 +107,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => { reload(); }, [reload]);
 
-  const logout = useCallback(() => setAutenticado(false), []);
+  const logout = useCallback(async () => {
+    // Limpar dados da sessão do AsyncStorage
+    await saveCurrentUser(null);
+    setAutenticado(false);
+  }, []);
 
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
 
