@@ -14,6 +14,26 @@ export const appRouter = router({
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
       return { success: true } as const;
     }),
+    register: publicProcedure
+      .input(z.object({ email: z.string().email(), name: z.string(), password: z.string().min(6) }))
+      .mutation(async ({ input }) => {
+        const existingUser = await db.getUserByEmail(input.email);
+        if (existingUser) throw new Error("Email already registered");
+        await db.registerUser(input.email, input.name, input.password);
+        return { success: true, message: "User registered. Awaiting admin approval." };
+      }),
+    login: publicProcedure
+      .input(z.object({ email: z.string().email(), password: z.string() }))
+      .mutation(async ({ input, ctx }) => {
+        const user = await db.loginUser(input.email, input.password);
+        if (!user) throw new Error("Invalid credentials");
+        if (user.status !== "aprovado") throw new Error("User not approved by admin");
+        
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, String(user.id), { ...cookieOptions, maxAge: 7 * 24 * 60 * 60 * 1000 });
+        
+        return { success: true, user };
+      }),
   }),
 
   // User Management (Admin only)

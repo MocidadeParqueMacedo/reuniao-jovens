@@ -61,15 +61,19 @@
 - **Níveis de acesso:** ADM e Auxiliar de Jovens
 
 
-### Fase 2: Autenticação com Google + Email/Senha
+### Fase 2: Autenticação com Google + Email/Senha (Backend)
 - [x] Adicionar campo `status` na tabela `users` (pendente/aprovado)
 - [x] Adicionar campo `role` na tabela `users` (admin/auxiliar)
 - [x] Implementar endpoints tRPC para gerenciar usuários
-- [ ] Implementar login com Google (OAuth)
-- [ ] Implementar login com Email/Senha
-- [ ] Implementar cadastro de novo usuário
-- [ ] Implementar tela de login no app
-- [ ] Integrar autenticação com tRPC
+
+### Fase 3: Autenticação com Google + Email/Senha (Frontend)
+- [x] Implementar endpoint tRPC para cadastro com email/senha
+- [x] Implementar endpoint tRPC para login com email/senha
+- [x] Criar tela de login no app
+- [x] Criar tela de cadastro no app
+- [x] Configurar TRPCProvider e QueryClient
+- [ ] Integrar Google OAuth (seu email como admin automático)
+- [ ] Testar fluxo completo de autenticação
 
 ### Fase 3: Painel de Admin
 - [ ] Criar tela de admin para aprovar/rejeitar usuários

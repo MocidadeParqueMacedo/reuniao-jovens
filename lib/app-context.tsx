@@ -36,7 +36,8 @@ interface AppContextValue extends AuthState, AppData {
   checkAndNotifyAbsences: () => Promise<void>;
   // Toast
   toast: string;
-  showToast: (msg: string) => void;
+  toastType: 'success' | 'error' | 'info';
+  showToast: (msg: string, type?: 'success' | 'error' | 'info') => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -69,8 +70,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(() => setAutenticado(false), []);
 
-  const showToast = useCallback((msg: string) => {
+  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
+
+  const showToast = useCallback((msg: string, type: 'success' | 'error' | 'info' = 'info') => {
     setToast(msg);
+    setToastType(type);
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(''), 2500);
   }, []);
@@ -156,7 +160,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       saveMembers, saveMeetings, saveEvents, saveVisitors,
       saveVisitas, saveVisitasComuns, saveAtas, saveVersinhos,
       checkAndNotifyAbsences,
-      toast, showToast,
+      toast, toastType, showToast,
     }}>
       {children}
     </AppContext.Provider>

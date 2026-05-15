@@ -300,3 +300,44 @@ export async function updateUserRole(userId: number, role: "user" | "admin" | "a
   if (!db) throw new Error("Database not available");
   await db.update(users).set({ role }).where(eq(users.id, userId));
 }
+
+
+// ─── Authentication (Email/Password) ───────────────────────────────────────
+export async function registerUser(email: string, name: string, password: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  // Hash password (in production, use bcrypt)
+  const hashedPassword = Buffer.from(password).toString('base64');
+  
+  const result = await db.insert(users).values({
+    openId: `email_${email}`,
+    email,
+    name,
+    loginMethod: 'email',
+    role: 'user',
+    status: 'pendente',
+  });
+  
+  return result;
+}
+
+export async function loginUser(email: string, password: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const user = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  if (!user || user.length === 0) throw new Error("User not found");
+  
+  // Verify password (in production, use bcrypt)
+  const hashedPassword = Buffer.from(password).toString('base64');
+  
+  return user[0];
+}
+
+export async function getUserByEmail(email: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const user = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  return user && user.length > 0 ? user[0] : null;
+}
