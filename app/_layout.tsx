@@ -1,3 +1,4 @@
+import * as WebBrowser from 'expo-web-browser';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -9,7 +10,10 @@ import { Toast } from '@/components/Toast';
 import { OfflineNotice } from '@/components/OfflineNotice';
 import '../global.css';
 
-// Create Query Client
+// Completar AuthSession uma única vez no entrypoint
+WebBrowser.maybeCompleteAuthSession();
+
+// Create Query Client (uma única vez)
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: { staleTime: 1000 * 60 * 5 },
