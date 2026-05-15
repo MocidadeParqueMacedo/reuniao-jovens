@@ -1,159 +1,184 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, TextInput, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { ScreenContainer } from '@/components/screen-container';
 import { useApp } from '@/lib/app-context';
+import { trpc } from '@/lib/trpc';
+import { useRouter } from 'expo-router';
+import { useGoogleAuth } from '@/lib/useGoogleAuth';
 
 export default function LoginScreen() {
-  const { setAutenticado } = useApp();
-  const [email, setEmail] = useState("");
-  const [senha, setSenha] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
+  const router = useRouter();
+  const { showToast, setAutenticado } = useApp();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isRegister, setIsRegister] = useState(false);
+
+  // tRPC mutations
+  const loginMutation = trpc.auth.login.useMutation();
+  const registerMutation = trpc.auth.register.useMutation();
+  const { signIn: googleSignIn, loading: googleLoading, error: googleError, isReady: googleReady } = useGoogleAuth();
+
+  // Monitor Google OAuth errors
+  useEffect(() => {
+    if (googleError) {
+      showToast(googleError, 'error');
+    }
+  }, [googleError, showToast]);
+
+  const handleGoogleLogin = async () => {
+    if (!googleReady) {
+      showToast('Google OAuth não está configurado. Configure EXPO_PUBLIC_GOOGLE_CLIENT_ID.', 'error');
+      return;
+    }
+    try {
+      await googleSignIn();
+      showToast('Login com Google realizado com sucesso!', 'success');
+      // Marcar como autenticado e navegar
+      setAutenticado(true);
+      router.replace('/(tabs)');
+    } catch (error: any) {
+      showToast(error.message || 'Erro ao fazer login com Google', 'error');
+    }
+  };
 
   const handleLogin = async () => {
-    if (!email || !senha) {
-      Alert.alert("Erro", "Preencha email e senha");
+    if (!email || !password) {
+      showToast('Por favor, preencha todos os campos', 'error');
       return;
     }
 
     try {
-      setLoading(true);
-
-      if (isSignUp) {
-        // Registrar novo usuário
-        Alert.alert(
-          "Sucesso",
-          "Conta criada! Você será notificado quando o administrador aprovar seu acesso.",
-          [{ text: "OK", onPress: () => setIsSignUp(false) }]
-        );
-        setEmail("");
-        setSenha("");
-      } else {
-        // Fazer login
-        setAutenticado(true);
-      }
+      const result = await loginMutation.mutateAsync({ email, password });
+      showToast('Login realizado com sucesso!', 'success');
+      // Marcar como autenticado e navegar
+      setAutenticado(true);
+      router.replace('/(tabs)');
     } catch (error: any) {
-      Alert.alert("Erro", error.message || "Erro ao fazer login");
-    } finally {
-      setLoading(false);
+      showToast(error.message || 'Erro ao fazer login', 'error');
     }
   };
 
+  const handleRegister = async () => {
+    if (!email || !password) {
+      showToast('Por favor, preencha email e senha', 'error');
+      return;
+    }
+
+    if (password.length < 6) {
+      showToast('Senha deve ter pelo menos 6 caracteres', 'error');
+      return;
+    }
+
+    try {
+      await registerMutation.mutateAsync({ email, password });
+      showToast('Cadastro realizado! Aguardando aprovação do administrador.', 'success');
+      setEmail('');
+      setPassword('');
+      setIsRegister(false);
+    } catch (error: any) {
+      showToast(error.message || 'Erro ao cadastrar', 'error');
+    }
+  };
+
+  const isLoading = loginMutation.isPending || registerMutation.isPending || googleLoading;
+
   return (
-    <ScreenContainer containerClassName="bg-background">
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1 }}
-      >
-        <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
-          <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 40 }}>
-            {/* Header */}
-            <View style={{ alignItems: 'center', marginBottom: 32 }}>
-              <Text style={{ fontSize: 56, marginBottom: 16 }}>🔐</Text>
-              <Text style={{ fontSize: 24, fontWeight: '800', color: '#fff', marginBottom: 8, textAlign: 'center' }}>
-                {isSignUp ? "Criar Conta" : "Fazer Login"}
-              </Text>
-              <Text style={{ fontSize: 14, color: '#cbd5e1', textAlign: 'center' }}>
-                {isSignUp ? "Crie uma conta para acessar" : "Entre com seu email e senha"}
-              </Text>
-            </View>
+    <ScreenContainer className="bg-gradient-to-b from-primary to-background">
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }} className="flex-1">
+        <View className="flex-1 justify-center px-6 py-8">
+          {/* Header */}
+          <View className="mb-8 items-center">
+            <Text className="text-4xl font-bold text-white mb-2">
+              Reunião de Jovens
+            </Text>
+            <Text className="text-lg text-white opacity-80">
+              {isRegister ? 'Criar Conta' : 'Fazer Login'}
+            </Text>
+          </View>
 
-            {/* Info */}
-            <View style={{ backgroundColor: '#1e3a8a', borderRadius: 12, padding: 12, borderLeftWidth: 4, borderLeftColor: '#3b82f6', marginBottom: 24 }}>
-              <Text style={{ fontSize: 13, color: '#93c5fd', lineHeight: 18 }}>
-                ℹ️ Seu acesso será revisado pelo administrador.
-              </Text>
-            </View>
-
-            {/* Email Input */}
-            <View style={{ marginBottom: 16 }}>
-              <Text style={{ fontSize: 13, fontWeight: '600', color: '#e2e8f0', marginBottom: 8 }}>Email</Text>
+          {/* Form */}
+          <View className="gap-4">
+            <View>
+              <Text className="text-foreground font-semibold mb-2">Email</Text>
               <TextInput
                 placeholder="seu@email.com"
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
-                editable={!loading}
-                placeholderTextColor="#64748b"
-                style={{
-                  borderWidth: 1,
-                  borderColor: '#334155',
-                  borderRadius: 8,
-                  paddingHorizontal: 12,
-                  paddingVertical: 12,
-                  color: '#e2e8f0',
-                  backgroundColor: '#1e293b',
-                  fontSize: 14,
-                }}
+                className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                editable={!isLoading}
               />
             </View>
 
-            {/* Senha Input */}
-            <View style={{ marginBottom: 24 }}>
-              <Text style={{ fontSize: 13, fontWeight: '600', color: '#e2e8f0', marginBottom: 8 }}>Senha</Text>
+            <View>
+              <Text className="text-foreground font-semibold mb-2">Senha</Text>
               <TextInput
-                placeholder="Digite sua senha"
-                value={senha}
-                onChangeText={setSenha}
+                placeholder="Sua senha"
+                value={password}
+                onChangeText={setPassword}
                 secureTextEntry
-                editable={!loading}
-                placeholderTextColor="#64748b"
-                style={{
-                  borderWidth: 1,
-                  borderColor: '#334155',
-                  borderRadius: 8,
-                  paddingHorizontal: 12,
-                  paddingVertical: 12,
-                  color: '#e2e8f0',
-                  backgroundColor: '#1e293b',
-                  fontSize: 14,
-                }}
+                className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                editable={!isLoading}
               />
-            </View>
-
-            {/* Login Button */}
-            <TouchableOpacity
-              onPress={handleLogin}
-              disabled={loading}
-              style={{
-                borderRadius: 12,
-                paddingVertical: 14,
-                alignItems: 'center',
-                marginBottom: 12,
-                backgroundColor: loading ? '#64748b' : '#4f46e5',
-              }}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={{ color: '#fff', fontWeight: '600', fontSize: 16 }}>
-                  {isSignUp ? "Criar Conta" : "Entrar"}
-                </Text>
+              {isRegister && (
+                <Text className="text-muted text-xs mt-1">Mínimo 6 caracteres</Text>
               )}
-            </TouchableOpacity>
-
-            {/* Toggle Sign Up / Login */}
-            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8 }}>
-              <Text style={{ color: '#94a3b8', fontSize: 14 }}>
-                {isSignUp ? "Já tem conta?" : "Não tem conta?"}
-              </Text>
-              <TouchableOpacity onPress={() => { setIsSignUp(!isSignUp); setEmail(""); setSenha(""); }} disabled={loading}>
-                <Text style={{ color: '#4f46e5', fontWeight: '600', fontSize: 14 }}>
-                  {isSignUp ? "Fazer login" : "Criar conta"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Footer */}
-            <View style={{ marginTop: 24, paddingHorizontal: 12 }}>
-              <Text style={{ fontSize: 12, color: '#94a3b8', lineHeight: 18, textAlign: 'center' }}>
-                Seu login será validado pelo administrador antes de ser aprovado.
-              </Text>
             </View>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+
+          {/* Button */}
+          <TouchableOpacity
+            onPress={isRegister ? handleRegister : handleLogin}
+            disabled={isLoading}
+            className="bg-primary rounded-lg py-4 mt-6 flex-row items-center justify-center"
+          >
+            {isLoading ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text className="text-white font-bold text-lg">
+                {isRegister ? 'Cadastrar' : 'Entrar'}
+              </Text>
+            )}
+          </TouchableOpacity>
+
+          {/* Google OAuth Button */}
+          {!isRegister && (
+            <TouchableOpacity
+              onPress={handleGoogleLogin}
+              disabled={isLoading}
+              className="bg-surface border border-border rounded-lg py-4 mt-4 flex-row items-center justify-center"
+            >
+              {googleLoading ? (
+                <ActivityIndicator color="#4f46e5" />
+              ) : (
+                <Text className="text-foreground font-semibold text-lg">🔐 Entrar com Google</Text>
+              )}
+            </TouchableOpacity>
+          )}
+
+          {/* Toggle */}
+          <View className="flex-row items-center justify-center mt-6">
+            <Text className="text-muted">
+              {isRegister ? 'Já tem conta? ' : 'Não tem conta? '}
+            </Text>
+            <TouchableOpacity onPress={() => setIsRegister(!isRegister)} disabled={isLoading}>
+              <Text className="text-primary font-bold">
+                {isRegister ? 'Fazer Login' : 'Cadastrar'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Info */}
+          {isRegister && (
+            <View className="bg-warning/10 border border-warning rounded-lg p-4 mt-6">
+              <Text className="text-warning text-sm">
+                ℹ️ Seu cadastro será enviado para aprovação do administrador. Você receberá uma notificação quando for aprovado.
+              </Text>
+            </View>
+          )}
+        </View>
+      </ScrollView>
     </ScreenContainer>
   );
 }

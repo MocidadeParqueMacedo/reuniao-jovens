@@ -1,103 +1,95 @@
-import { useEffect, useState, useRef } from "react";
 import * as WebBrowser from "expo-web-browser";
-import * as AuthSession from "expo-auth-session";
-import { Platform } from "react-native";
+import * as Google from "expo-auth-session/providers/google";
+import { useEffect, useState } from "react";
+import { trpc } from "./trpc";
 
+WebBrowser.maybeCompleteAuthSession();
+
+// Configure your Google OAuth credentials here
+// You need to create OAuth credentials in Google Cloud Console
 const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || "";
-
-// Configure the redirect URI
-const redirectUri = AuthSession.makeRedirectUri({
-  scheme: "reuniao-de-jovens",
-  path: "oauth-callback",
-});
+const GOOGLE_CLIENT_SECRET = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_SECRET || "";
 
 export function useGoogleAuth() {
   const [userInfo, setUserInfo] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const authInFlightRef = useRef(false);
-  const requestRef = useRef<AuthSession.AuthRequest | null>(null);
 
-  // Complete auth session on app load (native only)
+  const googleLoginMutation = trpc.auth.googleLogin.useMutation();
+
+  // Setup Google OAuth request
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    clientId: GOOGLE_CLIENT_ID,
+    clientSecret: GOOGLE_CLIENT_SECRET,
+    scopes: ["profile", "email"],
+  });
+
+  // Handle OAuth response
   useEffect(() => {
-    if (Platform.OS !== "web") {
-      try {
-        WebBrowser.maybeCompleteAuthSession();
-      } catch (err) {
-        // Ignore errors
-      }
+    if (response?.type === "success") {
+      handleGoogleSignIn(response.authentication?.accessToken);
     }
-  }, []);
+  }, [response]);
 
-  const signIn = async () => {
-    if (loading || authInFlightRef.current) return;
+  const handleGoogleSignIn = async (accessToken?: string) => {
+    if (!accessToken) {
+      setError("Falha ao obter token de acesso");
+      return;
+    }
 
     try {
-      authInFlightRef.current = true;
       setLoading(true);
       setError(null);
 
-      // Build the Google OAuth URL with proper parameters
-      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=profile%20email&access_type=offline&prompt=select_account`;
+      // Get user info from Google
+      const userInfoResponse = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
 
-      // Use openAuthSessionAsync to open the browser
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
-
-      if (result.type === "success") {
-        // Extract the authorization code from the URL
-        const url = new URL(result.url);
-        const code = url.searchParams.get("code");
-
-        if (code) {
-          // Exchange code for tokens on the backend
-          // For now, return mock user data
-          // In production, call your backend to exchange the code
-          
-          setUserInfo({
-            email: "user@example.com",
-            id: "unknown",
-            name: "User",
-            code: code, // Pass the code to the backend
-          });
-
-          return {
-            email: "user@example.com",
-            id: "unknown",
-            name: "User",
-            code: code,
-          };
-        } else {
-          setError("Erro ao obter código de autorização");
-        }
-      } else if (result.type === "cancel") {
-        setError("Login cancelado pelo usuário");
-      } else {
-        setError("Erro ao fazer login com Google");
+      if (!userInfoResponse.ok) {
+        throw new Error("Falha ao obter informações do usuário");
       }
+
+      const googleUserInfo = await userInfoResponse.json();
+
+      // Login via backend
+      const result = await googleLoginMutation.mutateAsync({
+        email: googleUserInfo.email,
+      });
+
+      setUserInfo(result.user);
+      return result.user;
     } catch (err: any) {
-      setError(err.message || "Erro ao fazer login com Google");
-      console.error("Google Auth Error:", err);
+      const errorMessage = err.message || "Erro ao fazer login com Google";
+      setError(errorMessage);
+      throw err;
     } finally {
-      authInFlightRef.current = false;
       setLoading(false);
     }
   };
 
-  const signOut = async () => {
+  const signIn = async () => {
     try {
-      setUserInfo(null);
-      setError(null);
+      const result = await promptAsync();
+      if (result?.type !== "success") {
+        setError("Login cancelado");
+      }
     } catch (err: any) {
-      setError(err.message || "Erro ao fazer logout");
+      setError(err.message || "Erro ao iniciar login com Google");
     }
+  };
+
+  const signOut = () => {
+    setUserInfo(null);
+    setError(null);
   };
 
   return {
     userInfo,
-    loading,
-    error,
+    loading: loading || googleLoginMutation.isPending,
+    error: error || (googleLoginMutation.isError ? "Erro ao fazer login" : null),
     signIn,
     signOut,
-    isReady: !!GOOGLE_CLIENT_ID,
+    isReady: !!request,
   };
 }
