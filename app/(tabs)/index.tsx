@@ -184,50 +184,7 @@ function DayDetailPanel({ dateStr, calData, onDeleteEvent }: { dateStr: string; 
   );
 }
 
-// ─── Modal Novo Evento ─────────────────────────────────────────────────────────
-function ModalNovoEvento({ visible, onClose, onSave }: { visible: boolean; onClose: () => void; onSave: (ev: Omit<CalEvent, 'id'>) => void }) {
-  const [titulo, setTitulo] = useState('');
-  const [data, setData] = useState('');
-  const [horario, setHorario] = useState('');
-  const [local, setLocal] = useState('');
-  const [obs, setObs] = useState('');
-  const { showToast } = useApp();
 
-  function handleSave() {
-    if (!titulo.trim() || !data) { showToast('Preencha título e data!'); return; }
-    onSave({ titulo: titulo.trim(), data, horario, local: local.trim(), obs: obs.trim() });
-    setTitulo(''); setData(''); setHorario(''); setLocal(''); setObs('');
-    onClose();
-  }
-
-  return (
-    <Modal visible={visible} transparent animationType="slide">
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalBox}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>📌 Novo Evento</Text>
-            <TouchableOpacity onPress={onClose}><Text style={styles.closeBtn}>✕</Text></TouchableOpacity>
-          </View>
-          <ScrollView>
-            <Text style={styles.label}>Título *</Text>
-            <TextInput style={styles.input} value={titulo} onChangeText={setTitulo} placeholder="Título do evento" placeholderTextColor="#94a3b8" />
-            <Text style={styles.label}>Data * (AAAA-MM-DD)</Text>
-            <TextInput style={styles.input} value={data} onChangeText={setData} placeholder="2025-06-15" placeholderTextColor="#94a3b8" keyboardType="numeric" />
-            <Text style={styles.label}>Horário</Text>
-            <TextInput style={styles.input} value={horario} onChangeText={setHorario} placeholder="19:00" placeholderTextColor="#94a3b8" />
-            <Text style={styles.label}>Local</Text>
-            <TextInput style={styles.input} value={local} onChangeText={setLocal} placeholder="Local do evento" placeholderTextColor="#94a3b8" />
-            <Text style={styles.label}>Observações</Text>
-            <TextInput style={[styles.input, { height: 70 }]} value={obs} onChangeText={setObs} placeholder="Observações..." placeholderTextColor="#94a3b8" multiline />
-            <TouchableOpacity style={styles.btnPrimary} onPress={handleSave}>
-              <Text style={styles.btnPrimaryText}>💾 Salvar Evento</Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
-      </View>
-    </Modal>
-  );
-}
 
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 export default function EventosScreen() {
@@ -268,7 +225,9 @@ export default function EventosScreen() {
   }
 
   function handleAddEvent() {
-    if (autenticado) { setShowEventModal(true); }
+    if (!autenticado) {
+      showToast('⚠️ Você precisa estar autenticado para adicionar eventos', 'error');
+    }
   }
 
   return (
@@ -336,11 +295,6 @@ export default function EventosScreen() {
           )}
         </View>
       </ScrollView>
-
-      <ModalNovoEvento
-        onClose={() => setShowEventModal(false)}
-        onSave={handleSaveEvent}
-      />
     </ScreenContainer>
   );
 }
