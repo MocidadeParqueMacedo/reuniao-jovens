@@ -52,38 +52,22 @@ export default function LoginScreen() {
     }, [])
   );
 
+  // ─── LOGIN ────────────────────────────────────────────────────────────────
   const handleLogin = async () => {
-    console.log('🔐 handleLogin chamado com email:', email, 'password:', password);
-    
-    // Validação básica
-    if (!email || !password) {
-      Alert.alert('Erro', 'Por favor, preencha todos os campos');
+    if (!email.trim() || !password.trim()) {
+      Alert.alert('Erro', 'Por favor, preencha email e senha');
       return;
     }
 
+    setIsLoading(true);
     try {
-      setIsLoading(true);
+      // Recarregar usuários do AsyncStorage
+      const users = await loadRegisteredUsers();
+      console.log('🔐 Login - Usuários carregados:', Object.keys(users));
 
-      // PASSO 1: Recarregar usuários do AsyncStorage
-      const currentUsers = await loadRegisteredUsers();
-      console.log('🔍 Tentando login com email:', email);
-      console.log('📋 Usuários registrados:', Object.keys(currentUsers));
-
-      // PASSO 2: Verificar se é admin
-      if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-        console.log('✅ Login de admin bem-sucedido');
-        setAutenticado(true);
-        await saveCurrentUser(email);
-        Alert.alert('Sucesso', 'Login de admin realizado com sucesso!');
-        return;
-      }
-
-      // PASSO 3: Verificar se o email existe
-      const user = currentUsers[email];
-      console.log('👤 Usuário encontrado:', user);
-      
-      if (!user) {
-        console.log('❌ Email não encontrado');
+      // 1️⃣ Verificar se email existe
+      if (!users[email]) {
+        console.log('❌ Email não encontrado:', email);
         Alert.alert(
           'Conta não encontrada',
           'Você não tem uma conta registrada com este email. Por favor, crie uma conta primeiro.'
@@ -91,7 +75,10 @@ export default function LoginScreen() {
         return;
       }
 
-      // PASSO 4: Verificar se a conta está aprovada
+      const user = users[email];
+      console.log('✅ Email encontrado. Status:', { approved: user.approved });
+
+      // 2️⃣ Verificar se está aprovado
       if (!user.approved) {
         console.log('⏳ Conta pendente de aprovação');
         Alert.alert(
@@ -101,52 +88,48 @@ export default function LoginScreen() {
         return;
       }
 
-      // PASSO 5: Verificar a senha
+      // 3️⃣ Verificar senha
       if (user.password !== password) {
         console.log('❌ Senha incorreta');
         Alert.alert('Erro', 'A senha que você digitou está incorreta. Tente novamente.');
         return;
       }
 
-      // PASSO 6: Login bem-sucedido
-      console.log('✅ Login bem-sucedido');
-      setAutenticado(true);
+      // ✅ Login bem-sucedido
+      console.log('✅ Login bem-sucedido!');
       await saveCurrentUser(email);
-      Alert.alert('Sucesso', 'Login realizado com sucesso!');
+      setAutenticado(true);
     } catch (error: any) {
-      console.error('❌ Erro ao fazer login:', error);
+      console.error('❌ Erro no login:', error);
       Alert.alert('Erro', error.message || 'Erro ao fazer login');
     } finally {
       setIsLoading(false);
     }
   };
 
+  // ─── REGISTER ──────────────────────────────────────────────────────────────
   const handleRegister = async () => {
-    console.log('📝 handleRegister chamado com email:', email);
-    
-    if (!email || !password) {
+    if (!email.trim() || !password.trim()) {
       Alert.alert('Erro', 'Por favor, preencha email e senha');
       return;
     }
 
     if (password.length < 6) {
-      Alert.alert('Erro', 'Senha deve ter pelo menos 6 caracteres');
+      Alert.alert('Erro', 'A senha deve ter no mínimo 6 caracteres');
       return;
     }
 
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-
-      // Recarregar usuários para ter dados atualizados
       const currentUsers = await loadRegisteredUsers();
 
       // Verificar se email já existe
       if (currentUsers[email]) {
-        Alert.alert('Erro', 'Este email já está cadastrado');
+        Alert.alert('Erro', 'Este email já está registrado');
         return;
       }
 
-      // Criar novo usuário (pendente de aprovação)
+      // Criar novo usuário
       const newUser: RegisteredUser = {
         email,
         password,
@@ -220,7 +203,7 @@ export default function LoginScreen() {
             </View>
           </View>
 
-          {/* Button - USANDO STYLE EM VEZ DE CLASSNAME */}
+          {/* Button */}
           <TouchableOpacity
             onPress={() => {
               console.log('🔘 Botão pressionado! isRegister:', isRegister);
@@ -257,22 +240,6 @@ export default function LoginScreen() {
                 {isRegister ? 'Fazer Login' : 'Cadastrar'}
               </Text>
             </TouchableOpacity>
-          </View>
-
-          {/* Info */}
-          {isRegister && (
-            <View className="bg-warning/10 border border-warning rounded-lg p-4 mt-6">
-              <Text className="text-warning text-sm">
-                ℹ️ Seu cadastro será enviado para aprovação do administrador.
-              </Text>
-            </View>
-          )}
-
-          {/* Admin Test Info */}
-          <View className="bg-primary/10 border border-primary rounded-lg p-4 mt-6">
-            <Text className="text-primary text-xs font-semibold mb-2">👤 Teste como Admin:</Text>
-            <Text className="text-primary text-xs">Email: rdj.parquemacedo@gmail.com</Text>
-            <Text className="text-primary text-xs">Senha: pqmacedo</Text>
           </View>
         </View>
       </ScrollView>
