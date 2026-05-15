@@ -1,3 +1,4 @@
+import React from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -18,10 +19,14 @@ const queryClient = new QueryClient({
 
 function RootLayoutContent() {
   const { autenticado } = useApp();
+  const [, setRender] = React.useState(0);
 
-  console.log('🔄 RootLayoutContent - autenticado:', autenticado);
+  React.useEffect(() => {
+    console.log('🔄 RootLayoutContent - autenticado mudou para:', autenticado);
+    setRender(r => r + 1); // Força re-renderização
+  }, [autenticado]);
 
-  // Renderização condicional: mostrar login OU tabs baseado em autenticado
+  console.log('🔄 Renderizando:', autenticado ? 'TABS' : 'LOGIN');
   if (autenticado) {
     return (
       <Stack screenOptions={{ headerShown: false }}>
