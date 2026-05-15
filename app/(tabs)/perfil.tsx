@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Alert, ScrollView, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
 import { useApp } from '@/lib/app-context';
-import { loadCurrentUser } from '@/lib/auth-persistence';
+import { loadCurrentUser, saveCurrentUser } from '@/lib/auth-persistence';
 
 const styles = StyleSheet.create({
   logoutButton: {
@@ -20,6 +21,7 @@ const styles = StyleSheet.create({
 });
 
 export default function PerfilScreen() {
+  const router = useRouter();
   const { autenticado, logout } = useApp();
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
 
@@ -41,8 +43,10 @@ export default function PerfilScreen() {
         { text: 'Cancelar', onPress: () => {}, style: 'cancel' },
         {
           text: 'Logout',
-          onPress: () => {
+          onPress: async () => {
+            await saveCurrentUser(null);
             logout();
+            router.replace('/login');
             Alert.alert('Sucesso', 'Você foi desconectado!');
           },
           style: 'destructive',
@@ -55,7 +59,10 @@ export default function PerfilScreen() {
     return (
       <ScreenContainer className="flex-1 items-center justify-center">
         <Text className="text-foreground text-lg mb-4">Você não está logado</Text>
-        <TouchableOpacity className="bg-primary rounded-lg px-6 py-3">
+        <TouchableOpacity 
+          onPress={() => router.replace('/login')}
+          className="bg-primary rounded-lg px-6 py-3"
+        >
           <Text className="text-white font-bold">Fazer Login</Text>
         </TouchableOpacity>
       </ScreenContainer>
