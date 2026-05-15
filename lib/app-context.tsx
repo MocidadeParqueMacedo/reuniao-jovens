@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import * as Notifications from 'expo-notifications';
 import { DB, Member, Meeting, CalEvent, Visitor, Visita, Ata, Versinho, ensureNextSundayMeeting, checkThreeConsecutiveAbsences } from './db';
-import { loadCurrentUser, loadRegisteredUsers } from './auth-persistence';
+import { loadCurrentUser, loadRegisteredUsers, saveRegisteredUsers } from './auth-persistence';
+import { ADMIN_EMAIL, ADMIN_PASSWORD } from './auth-store';
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 // Autenticação agora é apenas via Google OAuth - sem senha local
@@ -58,11 +59,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        // 1️⃣ Garantir que o admin existe no AsyncStorage
+        const users = await loadRegisteredUsers();
+        if (!users[ADMIN_EMAIL]) {
+          console.log('🔐 Admin não encontrado. Criando admin automaticamente...');
+          const updatedUsers = {
+            ...users,
+            [ADMIN_EMAIL]: {
+              email: ADMIN_EMAIL,
+              password: ADMIN_PASSWORD,
+              approved: true,
+              createdAt: new Date().toISOString(),
+            },
+          };
+          await saveRegisteredUsers(updatedUsers);
+          console.log('✅ Admin criado com sucesso!');
+        }
+
+        // 2️⃣ Verificar se o usuário atual está autenticado
         const currentUserEmail = await loadCurrentUser();
         if (currentUserEmail) {
-          // Verifica se o usuário ainda está aprovado
-          const users = await loadRegisteredUsers();
-          const user = users[currentUserEmail];
+          // Recarregar usuários para pegar a versão atualizada
+          const updatedUsers = await loadRegisteredUsers();
+          const user = updatedUsers[currentUserEmail];
           if (user && user.approved) {
             setAutenticado(true);
           } else {
