@@ -44,10 +44,18 @@ export default function PerfilScreen() {
         {
           text: 'Logout',
           onPress: async () => {
-            await saveCurrentUser(null);
-            logout();
-            router.replace('/login');
-            Alert.alert('Sucesso', 'Você foi desconectado!');
+            try {
+              console.log('🚪 Iniciando logout...');
+              await saveCurrentUser(null);
+              console.log('✅ Dados limpos');
+              await logout();
+              console.log('✅ Logout executado');
+              router.replace('/login');
+              console.log('✅ Navegado para login');
+            } catch (error) {
+              console.error('❌ Erro ao fazer logout:', error);
+              Alert.alert('Erro', 'Erro ao fazer logout. Tente novamente.');
+            }
           },
           style: 'destructive',
         },
