@@ -1,86 +1,56 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { ScreenContainer } from '@/components/screen-container';
 import { useApp } from '@/lib/app-context';
-import { trpc } from '@/lib/trpc';
-import { useRouter } from 'expo-router';
-import { useGoogleAuth } from '@/lib/useGoogleAuth';
 
 export default function LoginScreen() {
-  const router = useRouter();
-  const { showToast, setAutenticado } = useApp();
+  const { setAutenticado } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isRegister, setIsRegister] = useState(false);
-
-  // tRPC mutations
-  const loginMutation = trpc.auth.login.useMutation();
-  const registerMutation = trpc.auth.register.useMutation();
-  const { signIn: googleSignIn, loading: googleLoading, error: googleError, isReady: googleReady } = useGoogleAuth();
-
-  // Monitor Google OAuth errors
-  useEffect(() => {
-    if (googleError) {
-      showToast(googleError, 'error');
-    }
-  }, [googleError, showToast]);
-
-  const handleGoogleLogin = async () => {
-    if (!googleReady) {
-      showToast('Google OAuth não está configurado. Configure EXPO_PUBLIC_GOOGLE_CLIENT_ID.', 'error');
-      return;
-    }
-    try {
-      await googleSignIn();
-      showToast('Login com Google realizado com sucesso!', 'success');
-      // Marcar como autenticado e navegar
-      setAutenticado(true);
-      router.replace('/(tabs)');
-    } catch (error: any) {
-      showToast(error.message || 'Erro ao fazer login com Google', 'error');
-    }
-  };
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = async () => {
     if (!email || !password) {
-      showToast('Por favor, preencha todos os campos', 'error');
+      alert('Por favor, preencha todos os campos');
       return;
     }
 
     try {
-      const result = await loginMutation.mutateAsync({ email, password });
-      showToast('Login realizado com sucesso!', 'success');
-      // Marcar como autenticado e navegar
+      setIsLoading(true);
+      // Fazer login
       setAutenticado(true);
-      router.replace('/(tabs)');
     } catch (error: any) {
-      showToast(error.message || 'Erro ao fazer login', 'error');
+      alert(error.message || 'Erro ao fazer login');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleRegister = async () => {
     if (!email || !password) {
-      showToast('Por favor, preencha email e senha', 'error');
+      alert('Por favor, preencha email e senha');
       return;
     }
 
     if (password.length < 6) {
-      showToast('Senha deve ter pelo menos 6 caracteres', 'error');
+      alert('Senha deve ter pelo menos 6 caracteres');
       return;
     }
 
     try {
-      await registerMutation.mutateAsync({ email, password });
-      showToast('Cadastro realizado! Aguardando aprovação do administrador.', 'success');
+      setIsLoading(true);
+      // Registrar novo usuário
+      alert('Cadastro realizado! Aguardando aprovação do administrador.');
       setEmail('');
       setPassword('');
       setIsRegister(false);
     } catch (error: any) {
-      showToast(error.message || 'Erro ao cadastrar', 'error');
+      alert(error.message || 'Erro ao cadastrar');
+    } finally {
+      setIsLoading(false);
     }
   };
-
-  const isLoading = loginMutation.isPending || registerMutation.isPending || googleLoading;
 
   return (
     <ScreenContainer className="bg-gradient-to-b from-primary to-background">
@@ -141,21 +111,6 @@ export default function LoginScreen() {
               </Text>
             )}
           </TouchableOpacity>
-
-          {/* Google OAuth Button */}
-          {!isRegister && (
-            <TouchableOpacity
-              onPress={handleGoogleLogin}
-              disabled={isLoading}
-              className="bg-surface border border-border rounded-lg py-4 mt-4 flex-row items-center justify-center"
-            >
-              {googleLoading ? (
-                <ActivityIndicator color="#4f46e5" />
-              ) : (
-                <Text className="text-foreground font-semibold text-lg">🔐 Entrar com Google</Text>
-              )}
-            </TouchableOpacity>
-          )}
 
           {/* Toggle */}
           <View className="flex-row items-center justify-center mt-6">
