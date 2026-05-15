@@ -90,3 +90,11 @@
 - [x] Adicionar sub-filtros de continuação na tela de Presença (Irmãos: 1ª/2ª/3ª, Irmãs: 1ª/2ª/3ª/4ª/5ª)
 - [x] Implementar função de Adicionar Visitante conforme código original
 - [x] Implementar lançamento automático de próxima reunião na aba Histórico
+
+
+## Implementações Finais
+
+- [x] Corrigir aba Visitas com menu Comuns e Locais conforme código original
+- [x] Implementar notificações de 3 faltas consecutivas (adicionar automaticamente em Visitas > Locais)
+- [ ] Implementar sincronização em tempo real com backend PostgreSQL
+- [ ] Implementar exportação de presença em PDF

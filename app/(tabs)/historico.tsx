@@ -355,7 +355,7 @@ function filterMembersByGroup(members: Member[], grupo: 'todos' | 'irmaos' | 'ir
 
 // ─── Main Histórico Screen ─────────────────────────────────────────────────────
 export default function HistoricoScreen() {
-  const { meetings, members, autenticado, showToast, saveMeetings } = useApp();
+  const { meetings, members, autenticado, showToast, saveMeetings, checkAndNotifyAbsences } = useApp();
   const [showLogin, setShowLogin] = useState(false);
   const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
 
@@ -381,7 +381,9 @@ export default function HistoricoScreen() {
     if (!autenticado) setShowLogin(true);
     // Lançar automaticamente a próxima reunião de domingo
     ensureNextSundayMeeting();
-  }, [autenticado]));
+    // Verificar e notificar membros com 3 faltas consecutivas
+    checkAndNotifyAbsences();
+  }, [autenticado, checkAndNotifyAbsences]));
 
   async function ensureNextSundayMeeting() {
     const sundayDate = getNextSundayDate();

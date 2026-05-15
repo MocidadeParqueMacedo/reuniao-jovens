@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
-import { DB, Member, Meeting, CalEvent, Visitor, Visita, Ata, Versinho, ensureNextSundayMeeting } from './db';
+import * as Notifications from 'expo-notifications';
+import { DB, Member, Meeting, CalEvent, Visitor, Visita, Ata, Versinho, ensureNextSundayMeeting, checkThreeConsecutiveAbsences } from './db';
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 const SENHA_CORRETA = 'HOUVEUMSILENCIONOCEU';
@@ -32,6 +33,7 @@ interface AppContextValue extends AuthState, AppData {
   saveVisitasComuns: (v: string[]) => Promise<void>;
   saveAtas: (v: Ata[]) => Promise<void>;
   saveVersinhos: (v: Versinho[]) => Promise<void>;
+  checkAndNotifyAbsences: () => Promise<void>;
   // Toast
   toast: string;
   showToast: (msg: string) => void;
@@ -113,6 +115,39 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setData(d => ({ ...d, versinhos: v }));
   }, []);
 
+  const checkAndNotifyAbsences = useCallback(async () => {
+    const members = data.members;
+    const meetings = data.meetings;
+    const visitas = data.visitas;
+
+    for (const member of members) {
+      const hasThreeAbsences = checkThreeConsecutiveAbsences(member.id, meetings);
+      const alreadyInVisitas = visitas.some(v => v.nome.toLowerCase() === member.nome.toLowerCase());
+
+      if (hasThreeAbsences && !alreadyInVisitas) {
+        const novaVisita: Visita = {
+          id: Date.now(),
+          nome: member.nome,
+          data: new Date().toISOString().split('T')[0],
+          realizada: false,
+        };
+        const updatedVisitas = [...visitas, novaVisita];
+        await saveVisitas(updatedVisitas);
+
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: '⚠️ Membro com 3 Faltas',
+            body: `${member.nome} faltou 3 reunioes seguidas e foi adicionado a lista de visitas.`,
+            sound: 'default',
+          },
+          trigger: null,
+        });
+
+        showToast(`⚠️ ${member.nome} adicionado a lista de visitas (3 faltas)`);
+      }
+    }
+  }, [data.members, data.meetings, data.visitas, saveVisitas, showToast]);
+
   return (
     <AppContext.Provider value={{
       autenticado, tentarLogin, logout,
@@ -120,6 +155,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       reload,
       saveMembers, saveMeetings, saveEvents, saveVisitors,
       saveVisitas, saveVisitasComuns, saveAtas, saveVersinhos,
+      checkAndNotifyAbsences,
       toast, showToast,
     }}>
       {children}

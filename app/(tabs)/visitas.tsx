@@ -1,157 +1,146 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
-  StyleSheet, Modal, Alert,
+  StyleSheet, Modal, Alert, Switch,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
 import { LoginModal } from '@/components/LoginModal';
 import { useApp } from '@/lib/app-context';
-import { Visita, formatDate, todayISO } from '@/lib/db';
 
-// ─── Modal Nova Visita ─────────────────────────────────────────────────────────
-function ModalNovaVisita({ visible, onClose, onSave }: {
-  visible: boolean; onClose: () => void;
-  onSave: (v: Omit<Visita, 'id'>) => void;
-}) {
-  const { showToast } = useApp();
-  const [nome, setNome] = useState('');
-  const [data, setData] = useState('');
-  const [horario, setHorario] = useState('');
-  const [endereco, setEndereco] = useState('');
-  const [obs, setObs] = useState('');
-
-  function handleSave() {
-    if (!nome.trim() || !data) { showToast('Preencha nome e data!'); return; }
-    onSave({ nome: nome.trim(), data, horario, endereco: endereco.trim(), obs: obs.trim(), realizada: false });
-    setNome(''); setData(''); setHorario(''); setEndereco(''); setObs('');
-    onClose();
-  }
-
-  return (
-    <Modal visible={visible} transparent animationType="slide">
-      <View style={vStyles.modalOverlay}>
-        <View style={vStyles.modalBox}>
-          <View style={vStyles.modalHeader}>
-            <Text style={vStyles.modalTitle}>🏠 Agendar Visita</Text>
-            <TouchableOpacity onPress={onClose}><Text style={vStyles.closeBtn}>✕</Text></TouchableOpacity>
-          </View>
-          <ScrollView>
-            <Text style={vStyles.label}>Nome do(a) visitado(a) *</Text>
-            <TextInput style={vStyles.input} value={nome} onChangeText={setNome} placeholder="Nome" placeholderTextColor="#94a3b8" />
-            <Text style={vStyles.label}>Data * (AAAA-MM-DD)</Text>
-            <TextInput style={vStyles.input} value={data} onChangeText={setData} placeholder="2025-06-15" placeholderTextColor="#94a3b8" keyboardType="numeric" />
-            <Text style={vStyles.label}>Horário</Text>
-            <TextInput style={vStyles.input} value={horario} onChangeText={setHorario} placeholder="19:00" placeholderTextColor="#94a3b8" />
-            <Text style={vStyles.label}>Endereço</Text>
-            <TextInput style={vStyles.input} value={endereco} onChangeText={setEndereco} placeholder="Rua, número..." placeholderTextColor="#94a3b8" />
-            <Text style={vStyles.label}>Observações</Text>
-            <TextInput style={[vStyles.input, { height: 70 }]} value={obs} onChangeText={setObs} placeholder="Observações..." placeholderTextColor="#94a3b8" multiline />
-            <TouchableOpacity style={vStyles.btnPrimary} onPress={handleSave}>
-              <Text style={vStyles.btnPrimaryText}>💾 Salvar Visita</Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
-      </View>
-    </Modal>
-  );
+interface VisitaLocal {
+  id: number;
+  nome: string;
+  endereco?: string;
+  data?: string;
+  horario?: string;
+  obs?: string;
 }
 
-// ─── Detalhe da Visita ─────────────────────────────────────────────────────────
-function VisitaDetalhe({ visita, onBack, onToggle, onDelete }: {
-  visita: Visita; onBack: () => void;
-  onToggle: (id: number) => void; onDelete: (id: number) => void;
-}) {
-  return (
-    <View style={{ flex: 1 }}>
-      <View style={vStyles.detailHeader}>
-        <TouchableOpacity style={vStyles.backBtn} onPress={onBack}>
-          <Text style={vStyles.backText}>← Voltar</Text>
-        </TouchableOpacity>
-        <Text style={vStyles.detailTitle}>🏠 Detalhe da Visita</Text>
-      </View>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
-        <View style={vStyles.card}>
-          <Text style={vStyles.detailName}>{visita.nome}</Text>
-          <Text style={vStyles.detailSub}>📅 {formatDate(visita.data)}</Text>
-          {visita.horario ? <Text style={vStyles.detailSub}>⏰ {visita.horario}</Text> : null}
-          {visita.endereco ? <Text style={vStyles.detailSub}>📍 {visita.endereco}</Text> : null}
-          {visita.obs ? <Text style={vStyles.detailSub}>📝 {visita.obs}</Text> : null}
-          <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
-            <TouchableOpacity
-              style={[vStyles.btnPrimary, { flex: 1, backgroundColor: visita.realizada ? '#22c55e' : '#4f46e5' }]}
-              onPress={() => onToggle(visita.id)}
-            >
-              <Text style={vStyles.btnPrimaryText}>{visita.realizada ? '✅ Realizada' : '⬜ Marcar como Realizada'}</Text>
-            </TouchableOpacity>
-          </View>
-          <TouchableOpacity style={[vStyles.btnDanger, { marginTop: 10 }]} onPress={() => onDelete(visita.id)}>
-            <Text style={vStyles.btnPrimaryText}>🗑 Excluir Visita</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </View>
-  );
-}
-
-// ─── Main Screen ───────────────────────────────────────────────────────────────
 export default function VisitasScreen() {
-  const { visitas, visitasComuns, saveVisitas, saveVisitasComuns, autenticado, showToast } = useApp();
+  const { autenticado, showToast } = useApp();
   const [showLogin, setShowLogin] = useState(false);
-  const [activeMenu, setActiveMenu] = useState<'agendar' | 'historico' | 'comuns' | null>(null);
-  const [showModal, setShowModal] = useState(false);
-  const [selectedVisita, setSelectedVisita] = useState<Visita | null>(null);
-  const [novaComum, setNovaComum] = useState('');
+  const [showMenu, setShowMenu] = useState(true);
+  const [submenu, setSubmenu] = useState<'comuns' | 'locais' | null>(null);
+
+  // Para Comuns
+  const [visitasComuns, setVisitasComuns] = useState<string[]>([]);
+  
+  // Locais
+  const [visitasLocais, setVisitasLocais] = useState<VisitaLocal[]>([]);
+  const [visitasLocaisDone, setVisitasLocaisDone] = useState<number[]>([]);
+  const [showModalNovaVisita, setShowModalNovaVisita] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [formNome, setFormNome] = useState('');
+  const [formEndereco, setFormEndereco] = useState('');
+  const [formData, setFormData] = useState('');
+  const [formHorario, setFormHorario] = useState('');
+  const [formObs, setFormObs] = useState('');
 
   useFocusEffect(useCallback(() => {
     if (!autenticado) setShowLogin(true);
   }, [autenticado]));
 
-  async function handleSave(data: Omit<Visita, 'id'>) {
-    const nova: Visita = { ...data, id: Date.now() };
-    await saveVisitas([...visitas, nova]);
-    showToast('✅ Visita agendada!');
+  function abrirSubmenu(tipo: 'comuns' | 'locais') {
+    setShowMenu(false);
+    setSubmenu(tipo);
   }
 
-  async function handleToggle(id: number) {
-    const updated = visitas.map(v => v.id === id ? { ...v, realizada: !v.realizada } : v);
-    await saveVisitas(updated);
-    const v = updated.find(v => v.id === id);
-    if (selectedVisita) setSelectedVisita(v || null);
-    showToast(v?.realizada ? '✅ Marcada como realizada' : '⬜ Desmarcada');
+  function fecharSubmenu() {
+    setShowMenu(true);
+    setSubmenu(null);
   }
 
-  async function handleDelete(id: number) {
-    Alert.alert('Excluir Visita', 'Deseja excluir esta visita?', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Excluir', style: 'destructive',
-        onPress: async () => {
-          await saveVisitas(visitas.filter(v => v.id !== id));
-          setSelectedVisita(null);
-          showToast('🗑 Visita removida');
-        },
-      },
-    ]);
-  }
-
-  async function adicionarComum() {
-    if (!novaComum.trim()) return;
-    await saveVisitasComuns([...visitasComuns, novaComum.trim()]);
-    setNovaComum('');
-    showToast('✅ Comum adicionada!');
-  }
-
-  async function toggleComum(comum: string) {
-    if (visitasComuns.includes(comum)) {
-      await saveVisitasComuns(visitasComuns.filter(c => c !== comum));
+  // ─── Para Comuns ───────────────────────────────────────────────────────────
+  function toggleVisitaComum(comum: string, checked: boolean) {
+    if (checked) {
+      if (!visitasComuns.includes(comum)) {
+        setVisitasComuns([...visitasComuns, comum]);
+      }
     } else {
-      await saveVisitasComuns([...visitasComuns, comum]);
+      setVisitasComuns(visitasComuns.filter(c => c !== comum));
     }
   }
 
-  async function removerComum(comum: string) {
-    await saveVisitasComuns(visitasComuns.filter(c => c !== comum));
+  // ─── Locais ────────────────────────────────────────────────────────────────
+  function abrirModalNovaVisita() {
+    setEditingId(null);
+    setFormNome('');
+    setFormEndereco('');
+    setFormData('');
+    setFormHorario('');
+    setFormObs('');
+    setShowModalNovaVisita(true);
+  }
+
+  function abrirModalEditarVisita(visita: VisitaLocal) {
+    setEditingId(visita.id);
+    setFormNome(visita.nome);
+    setFormEndereco(visita.endereco || '');
+    setFormData(visita.data || '');
+    setFormHorario(visita.horario || '');
+    setFormObs(visita.obs || '');
+    setShowModalNovaVisita(true);
+  }
+
+  function fecharModalNovaVisita() {
+    setShowModalNovaVisita(false);
+  }
+
+  function salvarVisitaLocal() {
+    if (!formNome.trim()) {
+      showToast('Informe o nome do(a) visitado(a)!');
+      return;
+    }
+
+    if (editingId !== null) {
+      // Editar
+      setVisitasLocais(visitasLocais.map(v =>
+        v.id === editingId
+          ? { ...v, nome: formNome, endereco: formEndereco, data: formData, horario: formHorario, obs: formObs }
+          : v
+      ));
+      showToast('✅ Visita atualizada!');
+    } else {
+      // Novo
+      const novaVisita: VisitaLocal = {
+        id: Date.now(),
+        nome: formNome,
+        endereco: formEndereco,
+        data: formData,
+        horario: formHorario,
+        obs: formObs,
+      };
+      setVisitasLocais([...visitasLocais, novaVisita]);
+      showToast('✅ Visita salva!');
+    }
+
+    fecharModalNovaVisita();
+  }
+
+  function toggleVisitaLocalDone(id: number, checked: boolean) {
+    if (checked) {
+      if (!visitasLocaisDone.includes(id)) {
+        setVisitasLocaisDone([...visitasLocaisDone, id]);
+      }
+    } else {
+      setVisitasLocaisDone(visitasLocaisDone.filter(i => i !== id));
+    }
+  }
+
+  function deletarVisitaLocal(id: number) {
+    Alert.alert('Excluir visita?', 'Esta ação não pode ser desfeita.', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Excluir',
+        onPress: () => {
+          setVisitasLocais(visitasLocais.filter(v => v.id !== id));
+          setVisitasLocaisDone(visitasLocaisDone.filter(i => i !== id));
+          showToast('🗑 Visita removida');
+        },
+        style: 'destructive',
+      },
+    ]);
   }
 
   if (!autenticado) {
@@ -169,151 +158,222 @@ export default function VisitasScreen() {
     );
   }
 
-  if (selectedVisita) {
-    return (
-      <ScreenContainer containerClassName="bg-background" edges={['top','left','right']}>
-        <View style={vStyles.header}><Text style={vStyles.headerTitle}>🏠 Visitas</Text></View>
-        <VisitaDetalhe
-          visita={selectedVisita}
-          onBack={() => setSelectedVisita(null)}
-          onToggle={handleToggle}
-          onDelete={handleDelete}
-        />
-      </ScreenContainer>
-    );
-  }
-
-  const today = todayISO();
-  const upcoming = visitas.filter(v => v.data >= today && !v.realizada).sort((a, b) => a.data.localeCompare(b.data));
-  const past = visitas.filter(v => v.data < today || v.realizada).sort((a, b) => b.data.localeCompare(a.data));
-
   return (
     <ScreenContainer containerClassName="bg-background" edges={['top','left','right']}>
-      <View style={vStyles.header}><Text style={vStyles.headerTitle}>🏠 Visitas</Text></View>
+      <View style={vStyles.header}>
+        <Text style={vStyles.headerTitle}>🏠 Visitas</Text>
+      </View>
+
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 30 }}>
-        {/* Menu */}
-        {!activeMenu && (
-          <View style={vStyles.menuGrid}>
-            <TouchableOpacity style={vStyles.menuCard} onPress={() => { setActiveMenu('agendar'); setShowModal(true); }}>
-              <Text style={vStyles.menuIcon}>📅</Text>
-              <Text style={vStyles.menuLabel}>Agendar Visita</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={vStyles.menuCard} onPress={() => setActiveMenu('historico')}>
-              <Text style={vStyles.menuIcon}>📋</Text>
-              <Text style={vStyles.menuLabel}>Histórico</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[vStyles.menuCard, vStyles.menuCardFull]} onPress={() => setActiveMenu('comuns')}>
-              <Text style={vStyles.menuIcon}>✅</Text>
+        {/* Menu Principal */}
+        {showMenu && (
+          <View style={vStyles.menuContainer}>
+            <TouchableOpacity
+              style={vStyles.menuCard}
+              onPress={() => abrirSubmenu('comuns')}
+            >
+              <Text style={vStyles.menuIcon}>🏘</Text>
               <Text style={vStyles.menuLabel}>Para Comuns</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={vStyles.menuCard}
+              onPress={() => abrirSubmenu('locais')}
+            >
+              <Text style={vStyles.menuIcon}>🏠</Text>
+              <Text style={vStyles.menuLabel}>Locais</Text>
             </TouchableOpacity>
           </View>
         )}
 
-        {/* Histórico */}
-        {activeMenu === 'historico' && (
-          <>
+        {/* Submenu Para Comuns */}
+        {submenu === 'comuns' && (
+          <View>
             <View style={vStyles.submenuHeader}>
-              <TouchableOpacity style={vStyles.backBtn} onPress={() => setActiveMenu(null)}>
+              <TouchableOpacity onPress={fecharSubmenu} style={vStyles.backBtn}>
                 <Text style={vStyles.backText}>← Voltar</Text>
               </TouchableOpacity>
-              <Text style={vStyles.submenuTitle}>📋 Histórico de Visitas</Text>
+              <Text style={vStyles.submenuTitle}>🏘 Para Comuns</Text>
             </View>
-            <TouchableOpacity style={[vStyles.btnPrimary, { marginBottom: 12 }]} onPress={() => setShowModal(true)}>
-              <Text style={vStyles.btnPrimaryText}>+ Agendar Nova Visita</Text>
-            </TouchableOpacity>
-            {upcoming.length > 0 && (
-              <View style={vStyles.card}>
-                <Text style={vStyles.cardTitle}>⏳ Próximas</Text>
-                {upcoming.map(v => (
-                  <TouchableOpacity key={v.id} style={vStyles.visitaItem} onPress={() => setSelectedVisita(v)}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={vStyles.visitaNome}>🏠 {v.nome}</Text>
-                      <Text style={vStyles.visitaSub}>📅 {formatDate(v.data)}{v.horario ? ` · ⏰ ${v.horario}` : ''}</Text>
-                      {v.endereco ? <Text style={vStyles.visitaSub}>📍 {v.endereco}</Text> : null}
+
+            <View style={vStyles.card}>
+              <Text style={vStyles.cardTitle}>✅ Marque as comuns já visitadas</Text>
+              <View style={vStyles.comunsList}>
+                {visitasComuns.length === 0 ? (
+                  <View style={vStyles.empty}>
+                    <Text style={vStyles.emptyText}>Nenhuma comum registrada ainda</Text>
+                  </View>
+                ) : (
+                  visitasComuns.map((comum, idx) => (
+                    <View key={idx} style={vStyles.comunItem}>
+                      <Text style={vStyles.comunName}>{comum}</Text>
+                      <Switch
+                        value={visitasComuns.includes(comum)}
+                        onValueChange={(checked) => toggleVisitaComum(comum, checked)}
+                      />
                     </View>
-                    <Text style={{ color: '#818cf8', fontSize: 18 }}>›</Text>
-                  </TouchableOpacity>
-                ))}
+                  ))
+                )}
               </View>
-            )}
-            {past.length > 0 && (
-              <View style={vStyles.card}>
-                <Text style={vStyles.cardTitle}>✅ Realizadas / Passadas</Text>
-                {past.map(v => (
-                  <TouchableOpacity key={v.id} style={vStyles.visitaItem} onPress={() => setSelectedVisita(v)}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[vStyles.visitaNome, v.realizada && { color: '#22c55e' }]}>
-                        {v.realizada ? '✅' : '🏠'} {v.nome}
-                      </Text>
-                      <Text style={vStyles.visitaSub}>📅 {formatDate(v.data)}</Text>
-                    </View>
-                    <Text style={{ color: '#818cf8', fontSize: 18 }}>›</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-            {upcoming.length === 0 && past.length === 0 && (
-              <View style={vStyles.card}>
-                <View style={vStyles.empty}>
-                  <Text style={vStyles.emptyIcon}>🏠</Text>
-                  <Text style={vStyles.emptyText}>Nenhuma visita registrada</Text>
-                </View>
-              </View>
-            )}
-          </>
+            </View>
+          </View>
         )}
 
-        {/* Para Comuns */}
-        {activeMenu === 'comuns' && (
-          <>
-            <View style={vStyles.submenuHeader}>
-              <TouchableOpacity style={vStyles.backBtn} onPress={() => setActiveMenu(null)}>
-                <Text style={vStyles.backText}>← Voltar</Text>
-              </TouchableOpacity>
-              <Text style={vStyles.submenuTitle}>✅ Para Comuns</Text>
-            </View>
-            <View style={vStyles.card}>
-              <Text style={vStyles.cardTitle}>📋 Comuns a Visitar</Text>
-              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
-                <TextInput
-                  style={[vStyles.input, { flex: 1 }]}
-                  value={novaComum}
-                  onChangeText={setNovaComum}
-                  placeholder="Nome da comum..."
-                  placeholderTextColor="#94a3b8"
-                />
-                <TouchableOpacity style={vStyles.btnSmPrimary} onPress={adicionarComum}>
-                  <Text style={vStyles.btnSmPrimaryText}>+ Adicionar</Text>
+        {/* Submenu Locais */}
+        {submenu === 'locais' && (
+          <View>
+            <View style={[vStyles.submenuHeader, { justifyContent: 'space-between' }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <TouchableOpacity onPress={fecharSubmenu} style={vStyles.backBtn}>
+                  <Text style={vStyles.backText}>← Voltar</Text>
                 </TouchableOpacity>
+                <Text style={vStyles.submenuTitle}>🏠 Locais</Text>
               </View>
-              {visitasComuns.length === 0 ? (
-                <View style={vStyles.empty}>
-                  <Text style={vStyles.emptyIcon}>✅</Text>
-                  <Text style={vStyles.emptyText}>Nenhuma comum na lista</Text>
-                </View>
-              ) : (
-                visitasComuns.map((comum, i) => (
-                  <View key={i} style={vStyles.comunsItem}>
-                    <TouchableOpacity style={[vStyles.checkbox]} onPress={() => toggleComum(comum)}>
-                      <Text style={{ fontSize: 16 }}>{visitasComuns.includes(comum) ? '☑️' : '⬜'}</Text>
-                    </TouchableOpacity>
-                    <Text style={{ flex: 1, fontSize: 14, color: '#1e293b' }}>{comum}</Text>
-                    <TouchableOpacity onPress={() => removerComum(comum)}>
-                      <Text style={{ color: '#ef4444', fontSize: 16 }}>🗑</Text>
-                    </TouchableOpacity>
-                  </View>
-                ))
-              )}
+              <TouchableOpacity style={vStyles.btnSmPrimary} onPress={abrirModalNovaVisita}>
+                <Text style={vStyles.btnSmPrimaryText}>+ Nova</Text>
+              </TouchableOpacity>
             </View>
-          </>
+
+            <View style={vStyles.card}>
+              <Text style={vStyles.cardTitle}>✅ Marque as visitas realizadas</Text>
+              <View style={vStyles.visitasList}>
+                {visitasLocais.length === 0 ? (
+                  <View style={vStyles.empty}>
+                    <Text style={vStyles.emptyText}>Nenhuma visita registrada</Text>
+                  </View>
+                ) : (
+                  visitasLocais
+                    .sort((a, b) => {
+                      if (a.data && b.data) return a.data.localeCompare(b.data);
+                      if (a.data) return -1;
+                      if (b.data) return 1;
+                      return 0;
+                    })
+                    .map(visita => (
+                      <TouchableOpacity
+                        key={visita.id}
+                        style={vStyles.visitaItem}
+                        onPress={() => abrirModalEditarVisita(visita)}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <Switch
+                              value={visitasLocaisDone.includes(visita.id)}
+                              onValueChange={(checked) => toggleVisitaLocalDone(visita.id, checked)}
+                            />
+                            <Text style={[vStyles.visitaNome, visitasLocaisDone.includes(visita.id) && { textDecorationLine: 'line-through', opacity: 0.6 }]}>
+                              {visita.nome}
+                            </Text>
+                          </View>
+                          {visita.endereco && (
+                            <Text style={vStyles.visitaEndereco}>📍 {visita.endereco}</Text>
+                          )}
+                          {visita.data && (
+                            <Text style={vStyles.visitaData}>📅 {visita.data} {visita.horario ? `às ${visita.horario}` : ''}</Text>
+                          )}
+                        </View>
+                        <TouchableOpacity
+                          onPress={() => deletarVisitaLocal(visita.id)}
+                          style={vStyles.deleteBtn}
+                        >
+                          <Text style={vStyles.deleteBtnText}>🗑</Text>
+                        </TouchableOpacity>
+                      </TouchableOpacity>
+                    ))
+                )}
+              </View>
+            </View>
+          </View>
         )}
       </ScrollView>
 
-      <ModalNovaVisita
-        visible={showModal}
-        onClose={() => { setShowModal(false); if (activeMenu === 'agendar') setActiveMenu(null); }}
-        onSave={handleSave}
-      />
+      {/* Modal Nova/Editar Visita */}
+      <Modal visible={showModalNovaVisita} transparent animationType="slide">
+        <View style={vStyles.modalOverlay}>
+          <View style={vStyles.modalBox}>
+            <View style={vStyles.modalHeader}>
+              <Text style={vStyles.modalTitle}>
+                {editingId !== null ? '🏠 Editar Visita' : '🏠 Nova Visita Local'}
+              </Text>
+              <TouchableOpacity onPress={fecharModalNovaVisita}>
+                <Text style={vStyles.closeBtn}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ flex: 1 }}>
+              <View style={{ padding: 16, gap: 12 }}>
+                <View>
+                  <Text style={vStyles.label}>Nome do(a) visitado(a) *</Text>
+                  <TextInput
+                    style={vStyles.input}
+                    placeholder="Nome completo"
+                    value={formNome}
+                    onChangeText={setFormNome}
+                    placeholderTextColor="#94a3b8"
+                  />
+                </View>
+
+                <View>
+                  <Text style={vStyles.label}>Endereço</Text>
+                  <TextInput
+                    style={vStyles.input}
+                    placeholder="Rua, número, bairro..."
+                    value={formEndereco}
+                    onChangeText={setFormEndereco}
+                    placeholderTextColor="#94a3b8"
+                  />
+                </View>
+
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={vStyles.label}>Data</Text>
+                    <TextInput
+                      style={vStyles.input}
+                      placeholder="YYYY-MM-DD"
+                      value={formData}
+                      onChangeText={setFormData}
+                      placeholderTextColor="#94a3b8"
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={vStyles.label}>Horário</Text>
+                    <TextInput
+                      style={vStyles.input}
+                      placeholder="HH:MM"
+                      value={formHorario}
+                      onChangeText={setFormHorario}
+                      placeholderTextColor="#94a3b8"
+                    />
+                  </View>
+                </View>
+
+                <View>
+                  <Text style={vStyles.label}>Observações</Text>
+                  <TextInput
+                    style={[vStyles.input, { minHeight: 80 }]}
+                    placeholder="Informações adicionais..."
+                    value={formObs}
+                    onChangeText={setFormObs}
+                    placeholderTextColor="#94a3b8"
+                    multiline
+                    textAlignVertical="top"
+                  />
+                </View>
+              </View>
+            </ScrollView>
+
+            <View style={{ padding: 16, gap: 8, borderTopWidth: 1, borderTopColor: '#e2e8f0' }}>
+              <TouchableOpacity style={vStyles.btnPrimary} onPress={salvarVisitaLocal}>
+                <Text style={vStyles.btnPrimaryText}>💾 Salvar Visita</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={vStyles.btnSecondary} onPress={fecharModalNovaVisita}>
+                <Text style={vStyles.btnSecondaryText}>Cancelar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <LoginModal visible={showLogin} onSuccess={() => setShowLogin(false)} onCancel={() => setShowLogin(false)} />
     </ScreenContainer>
   );
@@ -322,52 +382,48 @@ export default function VisitasScreen() {
 const vStyles = StyleSheet.create({
   header: { backgroundColor: '#3730a3', padding: 16, paddingTop: 12 },
   headerTitle: { color: '#fff', fontSize: 18, fontWeight: '800', textAlign: 'center' },
+  menuContainer: { flexDirection: 'row', gap: 12, marginBottom: 20 },
+  menuCard: {
+    flex: 1, backgroundColor: '#fff', borderRadius: 14, padding: 20, alignItems: 'center', gap: 8,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 20, elevation: 4,
+  },
+  menuIcon: { fontSize: 40 },
+  menuLabel: { fontSize: 14, fontWeight: '700', color: '#1e293b', textAlign: 'center' },
+  submenuHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
+  backBtn: { backgroundColor: '#f1f5f9', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
+  backText: { color: '#4f46e5', fontWeight: '700', fontSize: 13 },
+  submenuTitle: { fontSize: 16, fontWeight: '800', color: '#4f46e5' },
   card: {
     backgroundColor: '#fff', borderRadius: 14, padding: 16, marginBottom: 12,
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 20, elevation: 4,
   },
-  cardTitle: { fontSize: 14, fontWeight: '700', color: '#4f46e5', marginBottom: 10 },
-  menuGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 },
-  menuCard: {
-    width: '47%', backgroundColor: '#fff', borderRadius: 14, padding: 18, alignItems: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 20, elevation: 4,
-    borderWidth: 2, borderColor: 'transparent',
-  },
-  menuCardFull: { width: '100%' },
-  menuIcon: { fontSize: 28, marginBottom: 6 },
-  menuLabel: { fontSize: 13, fontWeight: '700', color: '#1e293b' },
-  submenuHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
-  backBtn: { backgroundColor: '#f1f5f9', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
-  backText: { color: '#4f46e5', fontWeight: '700', fontSize: 13 },
-  submenuTitle: { fontSize: 14, fontWeight: '700', color: '#4f46e5' },
-  visitaItem: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#e2e8f0',
-  },
-  visitaNome: { fontWeight: '700', fontSize: 14 },
-  visitaSub: { fontSize: 12, color: '#64748b', marginTop: 2 },
-  comunsItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#e2e8f0' },
-  checkbox: { padding: 2 },
+  cardTitle: { fontSize: 13, fontWeight: '700', color: '#4f46e5', marginBottom: 12 },
+  comunsList: { gap: 10 },
+  comunItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#e2e8f0' },
+  comunName: { fontSize: 14, fontWeight: '600', color: '#1e293b' },
+  visitasList: { gap: 10 },
+  visitaItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#e2e8f0' },
+  visitaNome: { fontSize: 14, fontWeight: '700', color: '#1e293b', flex: 1 },
+  visitaEndereco: { fontSize: 12, color: '#64748b', marginTop: 4 },
+  visitaData: { fontSize: 12, color: '#64748b', marginTop: 2 },
+  deleteBtn: { padding: 6 },
+  deleteBtnText: { fontSize: 16 },
   empty: { alignItems: 'center', paddingVertical: 32 },
-  emptyIcon: { fontSize: 40, marginBottom: 8 },
   emptyText: { fontSize: 14, color: '#64748b' },
+  btnSmPrimary: { backgroundColor: '#4f46e5', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, alignItems: 'center' },
+  btnSmPrimaryText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  btnPrimary: { backgroundColor: '#4f46e5', borderRadius: 10, padding: 13, alignItems: 'center' },
+  btnPrimaryText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  btnSecondary: { backgroundColor: '#f1f5f9', borderRadius: 10, padding: 13, alignItems: 'center', borderWidth: 1.5, borderColor: '#e2e8f0' },
+  btnSecondaryText: { color: '#4f46e5', fontWeight: '700', fontSize: 14 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalBox: { backgroundColor: '#fff', borderRadius: 20, maxHeight: '90%' },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: '#e2e8f0' },
+  modalTitle: { fontSize: 16, fontWeight: '800', color: '#4f46e5' },
+  closeBtn: { fontSize: 22, color: '#64748b' },
+  label: { fontSize: 12, fontWeight: '600', color: '#64748b', marginBottom: 6 },
+  input: { borderWidth: 1.5, borderColor: '#e2e8f0', borderRadius: 9, padding: 10, fontSize: 14, backgroundColor: '#f1f5f9', color: '#1e293b' },
   lockedContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
   lockedIcon: { fontSize: 60, marginBottom: 16 },
   lockedText: { fontSize: 16, color: '#64748b', marginBottom: 24, textAlign: 'center' },
-  detailHeader: { backgroundColor: '#3730a3', padding: 16, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  detailTitle: { color: '#fff', fontWeight: '800', fontSize: 15 },
-  detailName: { fontSize: 18, fontWeight: '800', color: '#1e293b', marginBottom: 8 },
-  detailSub: { fontSize: 14, color: '#64748b', marginTop: 4 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalBox: { backgroundColor: '#fff', borderRadius: 20, padding: 24, maxHeight: '90%' },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
-  modalTitle: { fontSize: 18, fontWeight: '800', color: '#4f46e5' },
-  closeBtn: { fontSize: 22, color: '#64748b' },
-  label: { fontSize: 12, fontWeight: '600', color: '#64748b', marginBottom: 4, marginTop: 8 },
-  input: { borderWidth: 1.5, borderColor: '#e2e8f0', borderRadius: 9, padding: 10, fontSize: 14, backgroundColor: '#f1f5f9', color: '#1e293b', marginBottom: 4 },
-  btnPrimary: { backgroundColor: '#4f46e5', borderRadius: 10, padding: 13, alignItems: 'center', marginTop: 8 },
-  btnPrimaryText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  btnDanger: { backgroundColor: '#ef4444', borderRadius: 10, padding: 13, alignItems: 'center' },
-  btnSmPrimary: { backgroundColor: '#4f46e5', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, justifyContent: 'center' },
-  btnSmPrimaryText: { color: '#fff', fontSize: 12, fontWeight: '700' },
 });

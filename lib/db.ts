@@ -234,3 +234,22 @@ export function getDateRangeFromPeriod(year: string, periodType: string, periodV
   const fim = `${year}-${String(moFim + 1).padStart(2, '0')}-${String(dFim).padStart(2, '0')}`;
   return [ini, fim];
 }
+
+
+// Verificar se um membro faltou 3 reuniões consecutivas
+export function checkThreeConsecutiveAbsences(memberId: number, meetings: Meeting[]): boolean {
+  const sortedMeetings = [...meetings].sort((a, b) => b.date.localeCompare(a.date));
+  let consecutiveAbsences = 0;
+  
+  for (const meeting of sortedMeetings) {
+    const isPresent = (meeting.present || []).includes(memberId);
+    if (!isPresent) {
+      consecutiveAbsences++;
+      if (consecutiveAbsences >= 3) return true;
+    } else {
+      consecutiveAbsences = 0;
+    }
+  }
+  
+  return false;
+}
