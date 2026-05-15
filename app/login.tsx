@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { ScreenContainer } from '@/components/screen-container';
 import { useApp } from '@/lib/app-context';
+import { trpc } from '@/lib/trpc';
 
 export default function LoginScreen() {
   const { setAutenticado } = useApp();
@@ -9,6 +10,8 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [isRegister, setIsRegister] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  const loginMutation = trpc.auth.login.useMutation();
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -18,14 +21,17 @@ export default function LoginScreen() {
 
     try {
       setIsLoading(true);
-      // Fazer login
+      await loginMutation.mutateAsync({ email, password });
       setAutenticado(true);
+      alert('Login realizado com sucesso!');
     } catch (error: any) {
       alert(error.message || 'Erro ao fazer login');
     } finally {
       setIsLoading(false);
     }
   };
+
+  const registerMutation = trpc.auth.register.useMutation();
 
   const handleRegister = async () => {
     if (!email || !password) {
@@ -40,7 +46,7 @@ export default function LoginScreen() {
 
     try {
       setIsLoading(true);
-      // Registrar novo usuário
+      await registerMutation.mutateAsync({ email, password });
       alert('Cadastro realizado! Aguardando aprovação do administrador.');
       setEmail('');
       setPassword('');
