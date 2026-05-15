@@ -1,0 +1,17 @@
+{
+  "build_command": "pnpm run build",
+  "capabilities": [
+    "server",
+    "db",
+    "user"
+  ],
+  "dev_command": "pnpm run dev",
+  "experiments": [
+    "no_db_push"
+  ],
+  "name": "reuniao-jovens",
+  "path": "/home/ubuntu/reuniao-jovens",
+  "port": 3000,
+  "template_id": "app",
+  "test_command": "pnpm test"
+}
