@@ -10,6 +10,9 @@ import { LoginModal } from '@/components/LoginModal';
 import { PresencaChart } from '@/components/PresencaChart';
 import { useApp } from '@/lib/app-context';
 import { formatDate, todayISO, Member, Visitor, PERIODOS_MAP, getDateRangeFromPeriod } from '@/lib/db';
+import { useNetworkStatus } from '@/lib/useNetworkStatus';
+import { exportPresencaToPDF } from '@/lib/exportPresencaPDF';
+
 
 // ─── Função para obter próximo domingo ───────────────────────────────────────
 function getNextSundayDate(): string {
@@ -32,6 +35,7 @@ function PresencaScreen({
   onBack: () => void;
 }) {
   const { meetings, members, visitors, saveMeetings, saveVisitors, showToast } = useApp();
+  const { isOnline } = useNetworkStatus();
   const meeting = meetings.find(m => String(m.id || m.date) === String(meetingId));
   const [presenca, setPresenca] = useState<Record<string, boolean>>({});
   const [presVisitantes, setPresVisitantes] = useState<Visitor[]>([]);
