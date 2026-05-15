@@ -1,28 +1,177 @@
+import { z } from "zod";
 import { COOKIE_NAME } from "../shared/const.js";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router } from "./_core/trpc";
+import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
+import * as db from "./db";
 
 export const appRouter = router({
-  // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
-      return {
-        success: true,
-      } as const;
+      return { success: true } as const;
     }),
   }),
 
-  // TODO: add feature routers here, e.g.
-  // todo: router({
-  //   list: protectedProcedure.query(({ ctx }) =>
-  //     db.getUserTodos(ctx.user.id)
-  //   ),
-  // }),
+  // Reunião de Jovens API
+  members: router({
+    list: publicProcedure.query(() => db.getAllMembers()),
+    create: protectedProcedure
+      .input(z.object({
+        nome: z.string(),
+        genero: z.string(),
+        continuacao: z.number(),
+        dataNascimento: z.string().optional(),
+      }))
+      .mutation(({ input }) => db.createMember(input)),
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        nome: z.string().optional(),
+        genero: z.string().optional(),
+        continuacao: z.number().optional(),
+        dataNascimento: z.string().optional(),
+      }))
+      .mutation(({ input }) => db.updateMember(input.id, input)),
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(({ input }) => db.deleteMember(input.id)),
+  }),
+
+  meetings: router({
+    list: publicProcedure.query(() => db.getAllMeetings()),
+    create: protectedProcedure
+      .input(z.object({
+        date: z.string(),
+        isScheduled: z.number().optional(),
+      }))
+      .mutation(({ input }) => db.createMeeting(input)),
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        date: z.string().optional(),
+        isScheduled: z.number().optional(),
+      }))
+      .mutation(({ input }) => db.updateMeeting(input.id, input)),
+  }),
+
+  presenca: router({
+    byMeeting: publicProcedure
+      .input(z.object({ meetingId: z.number() }))
+      .query(({ input }) => db.getPresencaByMeeting(input.meetingId)),
+    create: protectedProcedure
+      .input(z.object({
+        meetingId: z.number(),
+        memberId: z.number(),
+        presente: z.number(),
+      }))
+      .mutation(({ input }) => db.createPresenca(input)),
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        presente: z.number().optional(),
+      }))
+      .mutation(({ input }) => db.updatePresenca(input.id, input)),
+  }),
+
+  visitas: router({
+    list: publicProcedure.query(() => db.getAllVisitas()),
+    create: protectedProcedure
+      .input(z.object({
+        nome: z.string(),
+        data: z.string().optional(),
+        realizada: z.number().optional(),
+        endereco: z.string().optional(),
+        horario: z.string().optional(),
+        observacoes: z.string().optional(),
+        tipo: z.string().optional(),
+      }))
+      .mutation(({ input }) => db.createVisita(input)),
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        nome: z.string().optional(),
+        data: z.string().optional(),
+        realizada: z.number().optional(),
+        endereco: z.string().optional(),
+        horario: z.string().optional(),
+        observacoes: z.string().optional(),
+        tipo: z.string().optional(),
+      }))
+      .mutation(({ input }) => db.updateVisita(input.id, input)),
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(({ input }) => db.deleteVisita(input.id)),
+  }),
+
+  atas: router({
+    list: publicProcedure.query(() => db.getAllAtas()),
+    create: protectedProcedure
+      .input(z.object({
+        data: z.string(),
+        conteudo: z.string().optional(),
+      }))
+      .mutation(({ input }) => db.createAta(input)),
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        data: z.string().optional(),
+        conteudo: z.string().optional(),
+      }))
+      .mutation(({ input }) => db.updateAta(input.id, input)),
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(({ input }) => db.deleteAta(input.id)),
+  }),
+
+  versinhos: router({
+    list: publicProcedure.query(() => db.getAllVersinhos()),
+    create: protectedProcedure
+      .input(z.object({
+        livro: z.string(),
+        capitulo: z.number(),
+        versiculo: z.number(),
+        ordem: z.number(),
+      }))
+      .mutation(({ input }) => db.createVersinho(input)),
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        livro: z.string().optional(),
+        capitulo: z.number().optional(),
+        versiculo: z.number().optional(),
+        ordem: z.number().optional(),
+      }))
+      .mutation(({ input }) => db.updateVersinho(input.id, input)),
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(({ input }) => db.deleteVersinho(input.id)),
+  }),
+
+  eventos: router({
+    list: publicProcedure.query(() => db.getAllEventos()),
+    create: protectedProcedure
+      .input(z.object({
+        data: z.string(),
+        tipo: z.string(),
+        titulo: z.string().optional(),
+      }))
+      .mutation(({ input }) => db.createEvento(input)),
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        data: z.string().optional(),
+        tipo: z.string().optional(),
+        titulo: z.string().optional(),
+      }))
+      .mutation(({ input }) => db.updateEvento(input.id, input)),
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(({ input }) => db.deleteEvento(input.id)),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

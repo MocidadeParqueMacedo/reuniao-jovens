@@ -1,96 +1,19 @@
 # TODO — Reunião de Jovens
 
-## Setup e Configuração
-- [x] Configurar tema de cores (theme.config.js)
-- [x] Configurar abas de navegação (7 abas)
-- [x] Criar contexto global de dados (AsyncStorage)
-- [x] Criar camada de dados (DB helper)
+## Funcionalidades Principais
 
-## Tela: Eventos
-- [x] Calendário anual com navegação de ano
-- [x] Mini-calendários mensais com pontos coloridos
-- [x] Painel de detalhe do dia
-- [x] Lista de próximos eventos
-- [x] Modal de novo evento (com autenticação)
-- [x] Deletar evento
-
-## Tela: Histórico
-- [x] Filtros (ano, período, grupo, subgrupo, continuação, tipo de membro)
-- [x] Lista de reuniões filtrada
-- [x] Tela de detalhe de presença (chamada)
-- [x] Toggle de presença por membro
-- [x] Suporte a visitantes por reunião
-- [x] Salvar presença
-- [x] Deletar reunião
-
-## Tela: Aniversários
-- [x] Lista de próximos aniversários com dias restantes
-
-## Tela: Membros
-- [x] Menu principal (Irmãos, Irmãs, Crianças, Mocidade, Todos)
-- [x] Submenus por continuação
-- [x] Busca global de membros
-- [x] Modal de novo membro (foto, nome, gênero, continuação, nascimento, telefone, auxiliar)
-- [x] Upload de foto (galeria e câmera)
-- [x] Editar membro
-- [x] Excluir membro
-- [x] FAB com opção de adicionar membro
-
-## Tela: Visitas
-- [x] Menu de visitas (Agendar, Histórico, Para Comuns)
-- [x] Formulário de agendamento
-- [x] Lista de visitas
-- [x] Detalhe da visita
-- [x] Checklist "Para Comuns"
-
-## Tela: Atas
-- [x] Lista de atas
-- [x] Modal de nova ata (data, auxiliares, assunto texto/doc/foto)
-- [x] Detalhe da ata
-- [x] Deletar ata
-
-## Tela: Versinhos
-- [x] Lista de reuniões com recitativos
-- [x] Modal de novo recitativo (data, livro ACF, capítulos, ordem de membros)
-- [x] Detalhe de recitativo por reunião
-- [x] Deletar recitativo
-
-## Autenticação
-- [x] Overlay de login com senha
-- [x] Proteção de abas restritas
-- [x] Toast de feedback
-
-## Branding
-- [x] Gerar logo do app
-- [x] Configurar app.config.ts
-- [x] Stats cards no header (Total Membros, Reuniões, Média)
-- [x] Toast de feedback
-- [x] Reunião de próximo domingo automática
-
-
-## Melhorias Solicitadas
-
-- [x] Adicionar filtros de intervalo na tela Histórico (semestre, trimestre, bimestre, personalizado)
-- [x] Implementar gráficos de presença (linha e barra) com base no filtro aplicado
-
-
-## Correções Solicitadas
-
-- [x] Restaurar todos os filtros originais na aba Histórico (Ano, Intervalo, Período, Datas, Grupo, Subgrupo, Continuação, Tipo de Membro)
-- [x] Manter o gráfico de presença já implementado
-
-
-## Correções Adicionais
-
-- [x] Corrigir lógica de filtros: remover subgrupo dinâmico e aplicar continuações corretas por grupo
-
-
-## Alterações na Tela de Presença
-
-- [x] Adicionar sub-filtros de continuação na tela de Presença (Irmãos: 1ª/2ª/3ª, Irmãs: 1ª/2ª/3ª/4ª/5ª)
-- [x] Implementar função de Adicionar Visitante conforme código original
-- [x] Implementar lançamento automático de próxima reunião na aba Histórico
-
+- [x] Tela de Eventos (calendário anual + lista de eventos)
+- [x] Tela de Histórico com filtros completos
+- [x] Tela de Aniversários
+- [x] Tela de Membros com menu e submenus
+- [x] Tela de Visitas (Para Comuns e Locais)
+- [x] Tela de Atas
+- [x] Tela de Versinhos (Recitativos)
+- [x] Gráficos de presença (linha e barra)
+- [x] Sub-filtros de continuação na tela de Presença
+- [x] Função de Adicionar Visitante
+- [x] Lançamento automático de próxima reunião
+- [x] Notificações de 3 faltas consecutivas
 
 ## Implementações Finais
 
@@ -98,3 +21,41 @@
 - [x] Implementar notificações de 3 faltas consecutivas (adicionar automaticamente em Visitas > Locais)
 - [ ] Implementar sincronização em tempo real com backend PostgreSQL
 - [ ] Implementar exportação de presença em PDF
+
+## Nova Fase: Autenticação e Sincronização Online
+
+### Fase 1: Backend e Sincronização
+- [x] Ler documentação do backend (server/README.md)
+- [x] Configurar PostgreSQL e Drizzle ORM
+- [x] Criar tabelas de usuários e permissões
+- [x] Implementar WebSockets para sincronização em tempo real
+- [x] Sincronizar dados de membros, reuniões, presença, etc.
+
+### Fase 2: Autenticação com Google
+- [ ] Configurar OAuth com Google
+- [ ] Implementar login com Google no app
+- [ ] Cadastro automático do admin (elias.g.alameda@gmail.com)
+- [ ] Implementar login com email/senha como alternativa
+
+### Fase 3: Painel de Admin
+- [ ] Criar tela de admin para aprovar/rejeitar cadastros
+- [ ] Implementar 2 níveis de acesso: ADM e Auxiliar de Jovens
+- [ ] Gerenciar permissões por nível
+- [ ] Seu login (admin) via Google
+
+### Fase 4: Modo Offline/Online
+- [ ] Visualização: funciona offline (dados em cache)
+- [ ] Adicionar/Cadastrar: força estar online
+- [ ] Sincronização automática quando voltar online
+- [ ] Indicador visual de status online/offline
+
+### Fase 5: Exportação em PDF
+- [ ] Gerar PDF com presença + gráfico
+- [ ] Opção de compartilhar ou baixar
+
+## Configuração do Admin
+
+- **Email:** elias.g.alameda@gmail.com
+- **Senha:** elias1610
+- **Login:** Via Google (sem digitar senha)
+- **Níveis de acesso:** ADM e Auxiliar de Jovens
