@@ -1,8 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { ScreenContainer } from '@/components/screen-container';
 import { useApp } from '@/lib/app-context';
-import { trpc } from '@/lib/trpc';
+import { ADMIN_EMAIL, ADMIN_PASSWORD } from '@/lib/auth-store';
+import { 
+  loadRegisteredUsers, 
+  saveRegisteredUsers, 
+  saveCurrentUser,
+  RegisteredUser 
+} from '@/lib/auth-persistence';
 
 export default function LoginScreen() {
   const { setAutenticado } = useApp();
@@ -10,8 +16,16 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [isRegister, setIsRegister] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [registeredUsers, setRegisteredUsers] = useState<Record<string, RegisteredUser>>({});
 
-  const loginMutation = trpc.auth.login.useMutation();
+  // Carregar usuários ao montar o componente
+  useEffect(() => {
+    const loadUsers = async () => {
+      const users = await loadRegisteredUsers();
+      setRegisteredUsers(users);
+    };
+    loadUsers();
+  }, []);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -21,8 +35,34 @@ export default function LoginScreen() {
 
     try {
       setIsLoading(true);
-      await loginMutation.mutateAsync({ email, password });
+
+      // Check if it's admin
+      if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+        setAutenticado(true);
+        await saveCurrentUser(email);
+        alert('Login de admin realizado com sucesso!');
+        return;
+      }
+
+      // Check if user exists and is approved
+      const user = registeredUsers[email];
+      if (!user) {
+        alert('Usuário não encontrado. Crie uma conta primeiro.');
+        return;
+      }
+
+      if (user.password !== password) {
+        alert('Senha incorreta');
+        return;
+      }
+
+      if (!user.approved) {
+        alert('Sua conta ainda não foi aprovada pelo administrador. Aguarde a aprovação.');
+        return;
+      }
+
       setAutenticado(true);
+      await saveCurrentUser(email);
       alert('Login realizado com sucesso!');
     } catch (error: any) {
       alert(error.message || 'Erro ao fazer login');
@@ -30,8 +70,6 @@ export default function LoginScreen() {
       setIsLoading(false);
     }
   };
-
-  const registerMutation = trpc.auth.register.useMutation();
 
   const handleRegister = async () => {
     if (!email || !password) {
@@ -46,7 +84,29 @@ export default function LoginScreen() {
 
     try {
       setIsLoading(true);
-      await registerMutation.mutateAsync({ email, password });
+
+      // Check if email already exists
+      if (registeredUsers[email]) {
+        alert('Este email já está cadastrado');
+        return;
+      }
+
+      // Register new user (pending approval)
+      const newUser: RegisteredUser = {
+        email,
+        password,
+        approved: false,
+        createdAt: new Date().toISOString(),
+      };
+
+      const updatedUsers = {
+        ...registeredUsers,
+        [email]: newUser,
+      };
+
+      setRegisteredUsers(updatedUsers);
+      await saveRegisteredUsers(updatedUsers);
+
       alert('Cadastro realizado! Aguardando aprovação do administrador.');
       setEmail('');
       setPassword('');
@@ -138,6 +198,13 @@ export default function LoginScreen() {
               </Text>
             </View>
           )}
+
+          {/* Admin Test Info */}
+          <View className="bg-primary/10 border border-primary rounded-lg p-4 mt-6">
+            <Text className="text-primary text-xs font-semibold mb-2">👤 Teste como Admin:</Text>
+            <Text className="text-primary text-xs">Email: rdj.parquemacedo@gmail.com</Text>
+            <Text className="text-primary text-xs">Senha: pqmacedo</Text>
+          </View>
         </View>
       </ScrollView>
     </ScreenContainer>

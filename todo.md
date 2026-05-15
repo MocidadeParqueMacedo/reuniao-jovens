@@ -66,19 +66,18 @@
 - [x] Adicionar campo `role` na tabela `users` (admin/auxiliar)
 - [x] Implementar endpoints tRPC para gerenciar usuários
 
-### Fase 3: Autenticação com Google + Email/Senha (Frontend)
-- [x] Implementar endpoint tRPC para cadastro com email/senha
-- [x] Implementar endpoint tRPC para login com email/senha
+### Fase 3: Autenticação com Email/Senha (Frontend)
+- [x] Implementar login com email/senha
+- [x] Implementar registro com email/senha
 - [x] Criar tela de login no app
-- [x] Criar tela de cadastro no app
-- [x] Configurar TRPCProvider e QueryClient
-- [ ] Integrar Google OAuth (seu email como admin automático)
-- [ ] Testar fluxo completo de autenticação
+- [x] Configurar persistência com AsyncStorage
+- [x] Testar fluxo completo de autenticação
 
 ### Fase 3: Painel de Admin
-- [ ] Criar tela de admin para aprovar/rejeitar usuários
-- [ ] Implementar aprovação de usuários
-- [ ] Implementar gerenciamento de permissões
+- [x] Criar tela de admin para aprovar/rejeitar usuários
+- [x] Implementar aprovação de usuários com persistência
+- [x] Implementar rejeição de usuários
+- [x] Listar usuários pendentes de aprovação
 
 ### Fase 4: Sincronização Frontend-Backend
 - [ ] Conectar app ao backend tRPC
