@@ -268,3 +268,35 @@ export async function deleteEvento(id: number) {
   if (!db) throw new Error("Database not available");
   await db.delete(eventos).where(eq(eventos.id, id));
 }
+
+
+// ─── User Management ───────────────────────────────────────────────────────
+export async function getAllUsers() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(users);
+}
+
+export async function getPendingUsers() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(users).where(eq(users.status, "pendente"));
+}
+
+export async function approveUser(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(users).set({ status: "aprovado" }).where(eq(users.id, userId));
+}
+
+export async function rejectUser(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(users).set({ status: "rejeitado" }).where(eq(users.id, userId));
+}
+
+export async function updateUserRole(userId: number, role: "user" | "admin" | "auxiliar") {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(users).set({ role }).where(eq(users.id, userId));
+}

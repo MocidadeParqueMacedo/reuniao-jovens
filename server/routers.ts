@@ -16,6 +16,39 @@ export const appRouter = router({
     }),
   }),
 
+  // User Management (Admin only)
+  users: router({
+    list: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user?.role !== "admin") throw new Error("Unauthorized");
+      return db.getAllUsers();
+    }),
+    pending: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user?.role !== "admin") throw new Error("Unauthorized");
+      return db.getPendingUsers();
+    }),
+    approve: protectedProcedure
+      .input(z.object({ userId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user?.role !== "admin") throw new Error("Unauthorized");
+        await db.approveUser(input.userId);
+        return { success: true };
+      }),
+    reject: protectedProcedure
+      .input(z.object({ userId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user?.role !== "admin") throw new Error("Unauthorized");
+        await db.rejectUser(input.userId);
+        return { success: true };
+      }),
+    updateRole: protectedProcedure
+      .input(z.object({ userId: z.number(), role: z.enum(["user", "admin", "auxiliar"]) }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user?.role !== "admin") throw new Error("Unauthorized");
+        await db.updateUserRole(input.userId, input.role);
+        return { success: true };
+      }),
+  }),
+
   // Reunião de Jovens API
   members: router({
     list: publicProcedure.query(() => db.getAllMembers()),

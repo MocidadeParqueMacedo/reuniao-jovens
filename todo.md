@@ -59,3 +59,35 @@
 - **Senha:** elias1610
 - **Login:** Via Google (sem digitar senha)
 - **Níveis de acesso:** ADM e Auxiliar de Jovens
+
+
+### Fase 2: Autenticação com Google + Email/Senha
+- [x] Adicionar campo `status` na tabela `users` (pendente/aprovado)
+- [x] Adicionar campo `role` na tabela `users` (admin/auxiliar)
+- [x] Implementar endpoints tRPC para gerenciar usuários
+- [ ] Implementar login com Google (OAuth)
+- [ ] Implementar login com Email/Senha
+- [ ] Implementar cadastro de novo usuário
+- [ ] Implementar tela de login no app
+- [ ] Integrar autenticação com tRPC
+
+### Fase 3: Painel de Admin
+- [ ] Criar tela de admin para aprovar/rejeitar usuários
+- [ ] Implementar aprovação de usuários
+- [ ] Implementar gerenciamento de permissões
+
+### Fase 4: Sincronização Frontend-Backend
+- [ ] Conectar app ao backend tRPC
+- [ ] Sincronizar membros
+- [ ] Sincronizar reuniões e presença
+- [ ] Sincronizar visitas, atas, versinhos, eventos
+
+### Fase 5: Modo Offline/Online
+- [ ] Implementar verificação de conectividade
+- [ ] Modo offline para visualização
+- [ ] Modo online obrigatório para adicionar/editar
+- [ ] Fila de sincronização
+
+### Fase 6: Exportação em PDF
+- [ ] Implementar geração de PDF com presença
+- [ ] Implementar geração de PDF com gráfico

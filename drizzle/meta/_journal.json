@@ -15,6 +15,13 @@
       "when": 1778843868655,
       "tag": "0001_yummy_spot",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1778844212827,
+      "tag": "0002_natural_avengers",
+      "breakpoints": true
     }
   ]
 }
