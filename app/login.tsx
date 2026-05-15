@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
 import { useApp } from '@/lib/app-context';
@@ -31,49 +31,65 @@ export default function LoginScreen() {
   );
 
   const handleLogin = async () => {
+    // Validação básica
     if (!email || !password) {
-      alert('Por favor, preencha todos os campos');
+      Alert.alert('Erro', 'Por favor, preencha todos os campos');
       return;
     }
 
     try {
       setIsLoading(true);
 
-      // Recarregar usuários antes de validar (garante dados atualizados)
+      // PASSO 1: Recarregar usuários do AsyncStorage
       const currentUsers = await loadRegisteredUsers();
+      console.log('🔍 Tentando login com email:', email);
+      console.log('📋 Usuários registrados:', Object.keys(currentUsers));
 
-      // Check if it's admin
+      // PASSO 2: Verificar se é admin
       if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+        console.log('✅ Login de admin bem-sucedido');
         setAutenticado(true);
         await saveCurrentUser(email);
-        alert('Login de admin realizado com sucesso!');
+        Alert.alert('Sucesso', 'Login de admin realizado com sucesso!');
         return;
       }
 
-      // Check if user exists
+      // PASSO 3: Verificar se o email existe
       const user = currentUsers[email];
       if (!user) {
-        alert('Conta não encontrada.\n\nVocê não tem uma conta registrada com este email. Por favor, crie uma conta primeiro.');
+        console.log('❌ Email não encontrado');
+        Alert.alert(
+          'Conta não encontrada',
+          'Você não tem uma conta registrada com este email. Por favor, crie uma conta primeiro.'
+        );
         return;
       }
 
-      // Check if user is pending approval
+      // PASSO 4: Verificar se a conta está aprovada
       if (!user.approved) {
-        alert('Conta Pendente.\n\nSua solicitação de acesso está aguardando aprovação do administrador. Você será notificado quando for aprovado.');
+        console.log('⏳ Conta pendente de aprovação');
+        Alert.alert(
+          'Conta Pendente',
+          'Sua solicitação de acesso está aguardando aprovação do administrador.'
+        );
         return;
       }
 
-      // Check password
+      // PASSO 5: Verificar a senha
       if (user.password !== password) {
-        alert('Senha incorreta.\n\nA senha que você digitou está incorreta. Tente novamente.');
+        console.log('❌ Senha incorreta');
+        Alert.alert('Erro', 'A senha que você digitou está incorreta. Tente novamente.');
         return;
       }
 
+      // PASSO 6: Login bem-sucedido
+      console.log('✅ Login bem-sucedido');
       setAutenticado(true);
       await saveCurrentUser(email);
-      alert('Login realizado com sucesso!');
+      Alert.alert('Sucesso', 'Login realizado com sucesso!');
     } catch (error: any) {
-      alert(error.message || 'Erro ao fazer login');
+      console.error('❌ Erro ao fazer login:', error);
+      Alert.alert('Erro', error.message || 'Erro ao fazer login');
     } finally {
       setIsLoading(false);
     }
@@ -81,25 +97,28 @@ export default function LoginScreen() {
 
   const handleRegister = async () => {
     if (!email || !password) {
-      alert('Por favor, preencha email e senha');
+      Alert.alert('Erro', 'Por favor, preencha email e senha');
       return;
     }
 
     if (password.length < 6) {
-      alert('Senha deve ter pelo menos 6 caracteres');
+      Alert.alert('Erro', 'Senha deve ter pelo menos 6 caracteres');
       return;
     }
 
     try {
       setIsLoading(true);
 
-      // Check if email already exists
-      if (registeredUsers[email]) {
-        alert('Este email já está cadastrado');
+      // Recarregar usuários para ter dados atualizados
+      const currentUsers = await loadRegisteredUsers();
+
+      // Verificar se email já existe
+      if (currentUsers[email]) {
+        Alert.alert('Erro', 'Este email já está cadastrado');
         return;
       }
 
-      // Register new user (pending approval)
+      // Criar novo usuário (pendente de aprovação)
       const newUser: RegisteredUser = {
         email,
         password,
@@ -108,19 +127,22 @@ export default function LoginScreen() {
       };
 
       const updatedUsers = {
-        ...registeredUsers,
+        ...currentUsers,
         [email]: newUser,
       };
 
       setRegisteredUsers(updatedUsers);
       await saveRegisteredUsers(updatedUsers);
 
-      alert('Cadastro realizado! Aguardando aprovação do administrador.');
+      Alert.alert(
+        'Cadastro realizado',
+        'Sua conta foi criada! Aguardando aprovação do administrador.'
+      );
       setEmail('');
       setPassword('');
       setIsRegister(false);
     } catch (error: any) {
-      alert(error.message || 'Erro ao cadastrar');
+      Alert.alert('Erro', error.message || 'Erro ao cadastrar');
     } finally {
       setIsLoading(false);
     }
@@ -202,7 +224,7 @@ export default function LoginScreen() {
           {isRegister && (
             <View className="bg-warning/10 border border-warning rounded-lg p-4 mt-6">
               <Text className="text-warning text-sm">
-                ℹ️ Seu cadastro será enviado para aprovação do administrador. Você receberá uma notificação quando for aprovado.
+                ℹ️ Seu cadastro será enviado para aprovação do administrador.
               </Text>
             </View>
           )}
