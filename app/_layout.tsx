@@ -21,15 +21,20 @@ function RootLayoutContent() {
 
   console.log('🔄 RootLayoutContent - autenticado:', autenticado);
 
-  return (
-    <Stack screenOptions={{ headerShown: false }}>
-      {autenticado ? (
+  // Renderização condicional: mostrar login OU tabs baseado em autenticado
+  if (autenticado) {
+    return (
+      <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      ) : (
+      </Stack>
+    );
+  } else {
+    return (
+      <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="login" options={{ headerShown: false }} />
-      )}
-    </Stack>
-  );
+      </Stack>
+    );
+  }
 }
 
 export default function RootLayout() {

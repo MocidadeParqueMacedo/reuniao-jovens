@@ -45,6 +45,7 @@ const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [autenticado, setAutenticado] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
   const [data, setData] = useState<AppData>({
     members: [], meetings: [], events: [], visitors: {},
     visitas: [], visitasComuns: [], atas: [], versinhos: [],
@@ -56,17 +57,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Verificar autenticação ao iniciar o app
   useEffect(() => {
     const checkAuth = async () => {
-      const currentUserEmail = await loadCurrentUser();
-      if (currentUserEmail) {
-        // Verifica se o usuário ainda está aprovado
-        const users = await loadRegisteredUsers();
-        const user = users[currentUserEmail];
-        if (user && user.approved) {
-          setAutenticado(true);
-        } else {
-          // Usuário não está mais aprovado, limpa a sessão
-          setAutenticado(false);
+      try {
+        const currentUserEmail = await loadCurrentUser();
+        if (currentUserEmail) {
+          // Verifica se o usuário ainda está aprovado
+          const users = await loadRegisteredUsers();
+          const user = users[currentUserEmail];
+          if (user && user.approved) {
+            setAutenticado(true);
+          } else {
+            // Usuário não está mais aprovado, limpa a sessão
+            setAutenticado(false);
+          }
         }
+      } finally {
+        setAuthLoading(false);
       }
     };
     checkAuth();
@@ -169,15 +174,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AppContext.Provider value={{
-      autenticado, setAutenticado, logout,
+      autenticado: authLoading ? false : autenticado, setAutenticado, logout,
       ...data,
       reload,
       saveMembers, saveMeetings, saveEvents, saveVisitors,
       saveVisitas, saveVisitasComuns, saveAtas, saveVersinhos,
       checkAndNotifyAbsences,
       toast, toastType, showToast,
-    }}>
-      {children}
+    }}
+    >
+      {!authLoading && children}
     </AppContext.Provider>
   );
 }
