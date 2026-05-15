@@ -95,3 +95,11 @@
 ### Fase 6: Exportação em PDF
 - [ ] Implementar geração de PDF com presença
 - [ ] Implementar geração de PDF com gráfico
+
+
+### Fase 4: Sincronização Frontend-Backend
+- [ ] Criar hook para sincronizar membros com backend
+- [ ] Criar hook para sincronizar reuniões e presença com backend
+- [ ] Atualizar tela de Membros para usar dados do backend
+- [ ] Atualizar tela de Histórico para usar dados do backend
+- [ ] Implementar salvamento automático de dados no backend
