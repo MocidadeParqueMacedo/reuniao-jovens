@@ -6,6 +6,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
+import { AuthModal } from '@/components/AuthModal';
 import { useApp } from '@/lib/app-context';
 import { Ata, formatDate } from '@/lib/db';
 

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { ScreenContainer } from '@/components/screen-container';
+import { AuthModal } from '@/components/AuthModal';
 import { useApp } from '@/lib/app-context';
 import { avatarColor, initials } from '@/lib/db';
 
@@ -21,7 +22,8 @@ function getAge(nascimento: string): number {
 }
 
 export default function AniversariosScreen() {
-  const { members } = useApp();
+  const { members, autenticado } = useApp();
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   const withBirthday = members
     .filter(m => m.nascimento)
@@ -52,6 +54,14 @@ export default function AniversariosScreen() {
           {isToday ? '🎉 Hoje!' : `em ${m.days}d`}
         </Text>
       </View>
+    );
+  }
+
+  if (!autenticado) {
+    return (
+      <>
+        <AuthModal visible={showAuthModal} onSuccess={() => { setShowAuthModal(false); }} />
+      </>
     );
   }
 

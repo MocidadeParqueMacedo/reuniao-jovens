@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
+import { AuthModal } from '@/components/AuthModal';
 import { useApp } from '@/lib/app-context';
 
 interface VisitaLocal {

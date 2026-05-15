@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
+import { AuthModal } from '@/components/AuthModal';
 import { useApp } from '@/lib/app-context';
 import { formatDate, todayISO, CalEvent, Visitor, Visita } from '@/lib/db';
 
@@ -191,6 +192,7 @@ export default function EventosScreen() {
   const { events, meetings, members, visitas, saveEvents, autenticado, showToast } = useApp();
   const [annualYear, setAnnualYear] = useState(new Date().getFullYear());
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [showAuthModal, setShowAuthModal] = useState(!autenticado);
 
   useFocusEffect(useCallback(() => {
     setSelectedDay(null);
@@ -230,8 +232,16 @@ export default function EventosScreen() {
     }
   }
 
+  if (!autenticado) {
+    return (
+      <>
+        <AuthModal visible={showAuthModal} onSuccess={() => { setShowAuthModal(false); }} />
+      </>
+    );
+  }
+
   return (
-    <ScreenContainer containerClassName="bg-background" edges={['top', 'left', 'right']}>
+    <ScreenContainer containerClassName="bg-background" edges={['top','left','right']}>
       <StatsHeader />
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 20 }}>
         {/* Calendar Card */}

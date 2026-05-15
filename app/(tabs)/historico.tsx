@@ -6,6 +6,7 @@ import {
 import { Picker } from '@react-native-picker/picker';
 import { useFocusEffect } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
+import { AuthModal } from '@/components/AuthModal';
 import { PresencaChart } from '@/components/PresencaChart';
 import { useApp } from '@/lib/app-context';
 import { formatDate, todayISO, Member, Visitor, PERIODOS_MAP, getDateRangeFromPeriod } from '@/lib/db';
