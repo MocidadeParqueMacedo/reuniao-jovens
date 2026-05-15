@@ -1,3 +1,4 @@
+import * as WebBrowser from 'expo-web-browser';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -8,6 +9,9 @@ import { AppProvider } from '@/lib/app-context';
 import { Toast } from '@/components/Toast';
 import { OfflineNotice } from '@/components/OfflineNotice';
 import '../global.css';
+
+// Completar AuthSession uma única vez no entrypoint
+WebBrowser.maybeCompleteAuthSession();
 
 // Create Query Client
 const queryClient = new QueryClient({

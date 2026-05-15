@@ -1,8 +1,6 @@
 import * as WebBrowser from "expo-web-browser";
 import * as Google from "expo-auth-session/providers/google";
-import { useEffect, useState } from "react";
-
-WebBrowser.maybeCompleteAuthSession();
+import { useEffect, useRef, useState } from "react";
 
 // Configure your Google OAuth credentials here
 const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || "";
@@ -11,6 +9,7 @@ export function useGoogleAuth() {
   const [userInfo, setUserInfo] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const authInProgressRef = useRef(false);
 
   // Setup Google OAuth request
   const [request, response, promptAsync] = Google.useAuthRequest({
@@ -22,12 +21,16 @@ export function useGoogleAuth() {
   useEffect(() => {
     if (response?.type === "success") {
       handleGoogleSignIn(response.authentication?.accessToken);
+    } else if (response?.type === "error") {
+      setError("Erro ao fazer login com Google");
+      authInProgressRef.current = false;
     }
   }, [response]);
 
   const handleGoogleSignIn = async (accessToken?: string) => {
     if (!accessToken) {
       setError("Falha ao obter token de acesso");
+      authInProgressRef.current = false;
       return;
     }
 
@@ -53,23 +56,40 @@ export function useGoogleAuth() {
       throw err;
     } finally {
       setLoading(false);
+      authInProgressRef.current = false;
     }
   };
 
   const signIn = async () => {
+    // Evitar múltiplas chamadas simultâneas
+    if (authInProgressRef.current || loading) {
+      return;
+    }
+
     try {
-      const result = await promptAsync();
-      if (result?.type !== "success") {
-        setError("Login cancelado");
+      authInProgressRef.current = true;
+      setError(null);
+      setLoading(true);
+
+      if (!request) {
+        setError("Google OAuth não está configurado");
+        authInProgressRef.current = false;
+        return;
       }
+
+      await promptAsync();
+      // O useEffect acima vai processar a resposta
     } catch (err: any) {
       setError(err.message || "Erro ao iniciar login com Google");
+      authInProgressRef.current = false;
+      setLoading(false);
     }
   };
 
   const signOut = () => {
     setUserInfo(null);
     setError(null);
+    authInProgressRef.current = false;
   };
 
   return {
