@@ -95,13 +95,13 @@ export default function LoginScreen() {
       // ✅ Login bem-sucedido
       console.log('✅ Login bem-sucedido!');
       await saveCurrentUser(email);
+      setIsLoading(false);
       showToast('Login realizado com sucesso!', 'success');
       setAutenticado(true);
-      // Não precisa fazer setIsLoading(false) aqui porque a tela vai mudar
     } catch (error: any) {
       console.error('❌ Erro no login:', error);
-      showToast(error.message || 'Erro ao fazer login', 'error');
       setIsLoading(false);
+      showToast(error.message || 'Erro ao fazer login', 'error');
     }
   };
 
