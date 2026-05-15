@@ -44,20 +44,26 @@ export default function LoginScreen() {
         return;
       }
 
-      // Check if user exists and is approved
-      const user = registeredUsers[email];
+      // Recarregar usuários para ter dados atualizados
+      const currentUsers = await loadRegisteredUsers();
+      setRegisteredUsers(currentUsers);
+
+      // Check if user exists
+      const user = currentUsers[email];
       if (!user) {
-        alert('Usuário não encontrado. Crie uma conta primeiro.');
+        alert('Conta não encontrada.\n\nVocê não tem uma conta registrada com este email. Por favor, crie uma conta primeiro.');
         return;
       }
 
-      if (user.password !== password) {
-        alert('Senha incorreta');
-        return;
-      }
-
+      // Check if user is pending approval
       if (!user.approved) {
-        alert('Sua conta ainda não foi aprovada pelo administrador. Aguarde a aprovação.');
+        alert('Conta Pendente.\n\nSua solicitação de acesso está aguardando aprovação do administrador. Você será notificado quando for aprovado.');
+        return;
+      }
+
+      // Check password
+      if (user.password !== password) {
+        alert('Senha incorreta.\n\nA senha que você digitou está incorreta. Tente novamente.');
         return;
       }
 
