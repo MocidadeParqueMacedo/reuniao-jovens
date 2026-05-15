@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Modal, View, Text, TextInput, TouchableOpacity, ScrollView,
-  ActivityIndicator, StyleSheet, KeyboardAvoidingView, Platform,
+  ActivityIndicator, StyleSheet, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import { useApp } from '@/lib/app-context';
-import { useGoogleAuth } from '@/lib/useGoogleAuth';
 
 interface AuthModalProps {
   visible: boolean;
@@ -12,28 +11,37 @@ interface AuthModalProps {
 }
 
 export function AuthModal({ visible, onSuccess }: AuthModalProps) {
-  const { showToast, setAutenticado } = useApp();
-  const { signIn: googleSignIn, loading: googleLoading, error: googleError, isReady: googleReady } = useGoogleAuth();
+  const { setAutenticado } = useApp();
+  const [email, setEmail] = useState('');
+  const [senha, setSenha] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
 
-  // Monitor Google OAuth errors
-  useEffect(() => {
-    if (googleError) {
-      showToast(googleError, 'error');
-    }
-  }, [googleError, showToast]);
-
-  const handleGoogleLogin = async () => {
-    if (!googleReady) {
-      showToast('Google OAuth não está configurado. Configure EXPO_PUBLIC_GOOGLE_CLIENT_ID.', 'error');
+  const handleLogin = async () => {
+    if (!email || !senha) {
+      Alert.alert('Erro', 'Preencha email e senha');
       return;
     }
+
     try {
-      await googleSignIn();
-      showToast('Login com Google realizado com sucesso!', 'success');
-      setAutenticado(true);
-      onSuccess();
+      setLoading(true);
+
+      if (isSignUp) {
+        // Registrar novo usuário
+        Alert.alert(
+          'Sucesso',
+          'Conta criada! Você será notificado quando o administrador aprovar seu acesso.',
+          [{ text: 'OK', onPress: () => { setIsSignUp(false); setEmail(''); setSenha(''); } }]
+        );
+      } else {
+        // Fazer login
+        setAutenticado(true);
+        onSuccess();
+      }
     } catch (error: any) {
-      showToast(error.message || 'Erro ao fazer login com Google', 'error');
+      Alert.alert('Erro', error.message || 'Erro ao fazer login');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -48,36 +56,82 @@ export function AuthModal({ visible, onSuccess }: AuthModalProps) {
             {/* Header */}
             <View style={styles.header}>
               <Text style={styles.icon}>🔐</Text>
-              <Text style={styles.title}>Fazer Login</Text>
+              <Text style={styles.title}>{isSignUp ? 'Criar Conta' : 'Fazer Login'}</Text>
               <Text style={styles.subtitle}>
-                Faça login para continuar
+                {isSignUp ? 'Crie uma conta para acessar' : 'Entre com seu email e senha'}
               </Text>
             </View>
 
             {/* Info */}
             <View style={styles.info}>
               <Text style={styles.infoText}>
-                ℹ️ Use sua conta Google para fazer login no app.
+                ℹ️ Seu acesso será revisado pelo administrador.
               </Text>
             </View>
 
-            {/* Google OAuth Button */}
+            {/* Email Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Email</Text>
+              <TextInput
+                placeholder="seu@email.com"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                editable={!loading}
+                placeholderTextColor="#64748b"
+                style={styles.input}
+              />
+            </View>
+
+            {/* Senha Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Senha</Text>
+              <TextInput
+                placeholder="Digite sua senha"
+                value={senha}
+                onChangeText={setSenha}
+                secureTextEntry
+                editable={!loading}
+                placeholderTextColor="#64748b"
+                style={styles.input}
+              />
+            </View>
+
+            {/* Login Button */}
             <TouchableOpacity
-              onPress={handleGoogleLogin}
-              disabled={googleLoading}
-              style={[styles.button, styles.googleButton]}
+              onPress={handleLogin}
+              disabled={loading}
+              style={[styles.button, { backgroundColor: loading ? '#64748b' : '#4f46e5' }]}
             >
-              {googleLoading ? (
-                <ActivityIndicator color="#4f46e5" />
+              {loading ? (
+                <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.googleButtonText}>🔐 Entrar com Google</Text>
+                <Text style={styles.buttonText}>
+                  {isSignUp ? 'Criar Conta' : 'Entrar'}
+                </Text>
               )}
             </TouchableOpacity>
+
+            {/* Toggle Sign Up / Login */}
+            <View style={styles.toggleContainer}>
+              <Text style={styles.toggleText}>
+                {isSignUp ? 'Já tem conta?' : 'Não tem conta?'}
+              </Text>
+              <TouchableOpacity
+                onPress={() => { setIsSignUp(!isSignUp); setEmail(''); setSenha(''); }}
+                disabled={loading}
+              >
+                <Text style={styles.toggleLink}>
+                  {isSignUp ? 'Fazer login' : 'Criar conta'}
+                </Text>
+              </TouchableOpacity>
+            </View>
 
             {/* Footer */}
             <View style={styles.footer}>
               <Text style={styles.footerText}>
-                Seu login será enviado para aprovação do administrador.
+                Seu login será validado pelo administrador antes de ser aprovado.
               </Text>
             </View>
           </View>
@@ -132,21 +186,50 @@ const styles = StyleSheet.create({
     color: '#93c5fd',
     lineHeight: 18,
   },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#e2e8f0',
+    marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#334155',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    color: '#e2e8f0',
+    backgroundColor: '#1e293b',
+    fontSize: 14,
+  },
   button: {
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
     marginBottom: 12,
   },
-  googleButton: {
-    backgroundColor: '#1e293b',
-    borderWidth: 1.5,
-    borderColor: '#334155',
-  },
-  googleButtonText: {
-    color: '#e2e8f0',
+  buttonText: {
+    color: '#fff',
     fontWeight: '600',
     fontSize: 16,
+  },
+  toggleContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 24,
+  },
+  toggleText: {
+    color: '#94a3b8',
+    fontSize: 14,
+  },
+  toggleLink: {
+    color: '#4f46e5',
+    fontWeight: '600',
+    fontSize: 14,
   },
   footer: {
     marginTop: 24,
