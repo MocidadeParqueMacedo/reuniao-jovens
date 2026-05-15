@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, StyleSheet } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
 import { useApp } from '@/lib/app-context';
 import { ADMIN_EMAIL, ADMIN_PASSWORD } from '@/lib/auth-store';
@@ -36,6 +36,7 @@ const styles = StyleSheet.create({
 });
 
 export default function LoginScreen() {
+  const router = useRouter();
   const { setAutenticado, showToast } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -49,6 +50,7 @@ export default function LoginScreen() {
         console.log('📋 Recarregando usuários ao focar na tela de login');
       };
       loadUsers();
+      return () => {};
     }, [])
   );
 
@@ -98,6 +100,12 @@ export default function LoginScreen() {
       setIsLoading(false);
       showToast('Login realizado com sucesso!', 'success');
       setAutenticado(true);
+      
+      // Navegar para tabs imediatamente com um pequeno delay
+      setTimeout(() => {
+        console.log('🚀 Navegando para /(tabs)');
+        router.replace('/(tabs)');
+      }, 100);
     } catch (error: any) {
       console.error('❌ Erro no login:', error);
       setIsLoading(false);
@@ -152,7 +160,7 @@ export default function LoginScreen() {
 
   return (
     <ScreenContainer className="flex-1">
-      <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24 }}>
+      <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 24 }}>
         <View style={{ marginBottom: 48 }}>
           <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#000', marginBottom: 8 }}>
             {isRegister ? 'Criar Conta' : 'Login'}
@@ -239,7 +247,7 @@ export default function LoginScreen() {
             </Text>
           </Text>
         </TouchableOpacity>
-      </ScrollView>
+      </View>
     </ScreenContainer>
   );
 }
