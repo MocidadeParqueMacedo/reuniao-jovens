@@ -16,6 +16,15 @@ export default function LoginScreen() {
   // tRPC mutations
   const loginMutation = trpc.auth.login.useMutation();
   const registerMutation = trpc.auth.register.useMutation();
+  const googleLoginMutation = trpc.auth.googleLogin.useMutation();
+
+  const handleGoogleLogin = async () => {
+    try {
+      showToast('Google OAuth será implementado em breve');
+    } catch (error: any) {
+      showToast(error.message || 'Erro ao fazer login com Google');
+    }
+  };
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -44,7 +53,7 @@ export default function LoginScreen() {
     }
 
     try {
-      await registerMutation.mutateAsync({ email, name, password });
+      await registerMutation.mutateAsync({ email, password });
       showToast('Cadastro realizado! Aguardando aprovação do administrador.');
       setEmail('');
       setPassword('');
@@ -129,6 +138,17 @@ export default function LoginScreen() {
               </Text>
             )}
           </TouchableOpacity>
+
+          {/* Google OAuth Button */}
+          {!isRegister && (
+            <TouchableOpacity
+              onPress={handleGoogleLogin}
+              disabled={isLoading}
+              className="bg-surface border border-border rounded-lg py-4 mt-4 flex-row items-center justify-center"
+            >
+              <Text className="text-foreground font-semibold text-lg">🔐 Entrar com Google</Text>
+            </TouchableOpacity>
+          )}
 
           {/* Toggle */}
           <View className="flex-row items-center justify-center mt-6">

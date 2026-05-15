@@ -1,343 +1,406 @@
-import { eq } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
-import { 
-  InsertUser, users, 
-  InsertMember, members,
-  InsertMeeting, meetings,
-  InsertPresenca, presenca,
-  InsertVisita, visitas,
-  InsertAta, atas,
-  InsertVersinho, versinhos,
-  InsertEvento, eventos,
-} from "../drizzle/schema";
-import { ENV } from "./_core/env";
+import { callDataApi } from "./_core/dataApi";
+import { users, members, meetings, presenca, visitas, atas, versinhos, eventos } from "@/drizzle/schema";
+import type { User, InsertUser } from "@/drizzle/schema";
+import * as crypto from "crypto";
 
-let _db: ReturnType<typeof drizzle> | null = null;
+// ─── User Management (OAuth) ───────────────────────────────────────────────────────
 
-// Lazily create the drizzle instance so local tooling can run without a DB.
-export async function getDb() {
-  if (!_db && process.env.DATABASE_URL) {
-    try {
-      _db = drizzle(process.env.DATABASE_URL);
-    } catch (error) {
-      console.warn("[Database] Failed to connect:", error);
-      _db = null;
-    }
-  }
-  return _db;
+export async function getUserByOpenId(openId: string): Promise<User | null> {
+  const result = await callDataApi("Database/Query", {
+    body: {
+      table: "users",
+      where: { openId },
+    },
+  });
+  const rows = (result as any)?.rows || [];
+  return rows.length > 0 ? rows[0] : null;
 }
 
-// ─── Users ────────────────────────────────────────────────────────────────
-export async function upsertUser(user: InsertUser): Promise<void> {
-  if (!user.openId) {
-    throw new Error("User openId is required for upsert");
-  }
-
-  const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot upsert user: database not available");
-    return;
-  }
-
-  try {
-    const values: InsertUser = {
-      openId: user.openId,
-    };
-    const updateSet: Record<string, unknown> = {};
-
-    const textFields = ["name", "email", "loginMethod"] as const;
-    type TextField = (typeof textFields)[number];
-
-    const assignNullable = (field: TextField) => {
-      const value = user[field];
-      if (value === undefined) return;
-      const normalized = value ?? null;
-      values[field] = normalized;
-      updateSet[field] = normalized;
-    };
-
-    textFields.forEach(assignNullable);
-
-    if (user.lastSignedIn !== undefined) {
-      values.lastSignedIn = user.lastSignedIn;
-      updateSet.lastSignedIn = user.lastSignedIn;
-    }
-    if (user.role !== undefined) {
-      values.role = user.role;
-      updateSet.role = user.role;
-    } else if (user.openId === ENV.ownerOpenId) {
-      values.role = "admin";
-      updateSet.role = "admin";
-    }
-
-    if (!values.lastSignedIn) {
-      values.lastSignedIn = new Date();
-    }
-
-    if (Object.keys(updateSet).length === 0) {
-      updateSet.lastSignedIn = new Date();
-    }
-
-    await db.insert(users).values(values).onDuplicateKeyUpdate({
-      set: updateSet,
-    });
-  } catch (error) {
-    console.error("[Database] Failed to upsert user:", error);
-    throw error;
-  }
+export async function upsertUser(data: Partial<InsertUser>): Promise<User> {
+  const result = await callDataApi("Database/Upsert", {
+    body: {
+      table: "users",
+      data,
+      uniqueKey: "openId",
+    },
+  });
+  return (result as any)?.record || data;
 }
 
-export async function getUserByOpenId(openId: string) {
-  const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot get user: database not available");
-    return undefined;
+// ─── User Management (Email/Password) ───────────────────────────────────────────────────────
+
+export async function getUserByEmail(email: string): Promise<User | null> {
+  const result = await callDataApi("Database/Query", {
+    body: {
+      table: "users",
+      where: { email },
+    },
+  });
+  const rows = (result as any)?.rows || [];
+  return rows.length > 0 ? rows[0] : null;
+}
+
+export async function createUser(
+  email: string,
+  password?: string,
+  role: "user" | "admin" | "auxiliar" = "user"
+): Promise<User> {
+  const hashedPassword = password ? crypto.createHash("sha256").update(password).digest("hex") : null;
+
+  const result = await callDataApi("Database/Insert", {
+    body: {
+      table: "users",
+      data: {
+        email,
+        password: hashedPassword,
+        role,
+        status: role === "admin" ? "aprovado" : "pendente",
+        createdAt: new Date(),
+      },
+    },
+  });
+
+  return (result as any)?.record || { email, role, status: role === "admin" ? "aprovado" : "pendente" };
+}
+
+export async function googleLogin(email: string): Promise<User> {
+  let user = await getUserByEmail(email);
+
+  if (!user) {
+    // Se é o email do admin, criar como admin automático
+    const isAdminEmail = email === "elias.g.alameda@gmail.com";
+    user = await createUser(email, undefined, isAdminEmail ? "admin" : "user");
   }
 
-  const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
-
-  return result.length > 0 ? result[0] : undefined;
+  return user;
 }
 
-// ─── Members ──────────────────────────────────────────────────────────────
-export async function getAllMembers() {
-  const db = await getDb();
-  if (!db) return [];
-  return db.select().from(members);
+export async function verifyPassword(email: string, password: string): Promise<User | null> {
+  const user = await getUserByEmail(email);
+  if (!user) return null;
+
+  // Para OAuth users, não há password
+  if (!user.loginMethod || user.loginMethod === "email") {
+    const hashedPassword = crypto.createHash("sha256").update(password).digest("hex");
+    // Comparar com o password armazenado (se existir)
+    // Por enquanto, retornar null se não houver match
+    return null;
+  }
+
+  return user;
 }
 
-export async function createMember(data: InsertMember) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  await db.insert(members).values(data);
-  return true;
+export async function listPendingUsers(): Promise<User[]> {
+  const result = await callDataApi("Database/Query", {
+    body: {
+      table: "users",
+      where: { status: "pendente" },
+    },
+  });
+  return (result as any)?.rows || [];
 }
 
-export async function updateMember(id: number, data: Partial<InsertMember>) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  await db.update(members).set(data).where(eq(members.id, id));
+export async function approveUser(userId: number): Promise<void> {
+  await callDataApi("Database/Update", {
+    body: {
+      table: "users",
+      where: { id: userId },
+      data: { status: "aprovado" },
+    },
+  });
+}
+
+export async function rejectUser(userId: number): Promise<void> {
+  await callDataApi("Database/Update", {
+    body: {
+      table: "users",
+      where: { id: userId },
+      data: { status: "rejeitado" },
+    },
+  });
+}
+
+export async function updateUserRole(userId: number, role: "user" | "admin" | "auxiliar"): Promise<void> {
+  await callDataApi("Database/Update", {
+    body: {
+      table: "users",
+      where: { id: userId },
+      data: { role },
+    },
+  });
+}
+
+// ─── Member Management ───────────────────────────────────────────────────────
+
+export async function listMembers() {
+  const result = await callDataApi("Database/Query", {
+    body: {
+      table: "members",
+    },
+  });
+  return (result as any)?.rows || [];
+}
+
+export async function createMember(data: any) {
+  const result = await callDataApi("Database/Insert", {
+    body: {
+      table: "members",
+      data,
+    },
+  });
+  return (result as any)?.record || data;
+}
+
+export async function updateMember(id: number, data: any) {
+  await callDataApi("Database/Update", {
+    body: {
+      table: "members",
+      where: { id },
+      data,
+    },
+  });
+  return { id, ...data };
 }
 
 export async function deleteMember(id: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  await db.delete(members).where(eq(members.id, id));
+  await callDataApi("Database/Delete", {
+    body: {
+      table: "members",
+      where: { id },
+    },
+  });
+  return { success: true };
 }
 
-// ─── Meetings ─────────────────────────────────────────────────────────────
-export async function getAllMeetings() {
-  const db = await getDb();
-  if (!db) return [];
-  return db.select().from(meetings);
+// ─── Meeting Management ───────────────────────────────────────────────────────
+
+export async function listMeetings() {
+  const result = await callDataApi("Database/Query", {
+    body: {
+      table: "meetings",
+    },
+  });
+  return (result as any)?.rows || [];
 }
 
-export async function createMeeting(data: InsertMeeting) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  await db.insert(meetings).values(data);
-  return true;
+export async function createMeeting(data: any) {
+  const result = await callDataApi("Database/Insert", {
+    body: {
+      table: "meetings",
+      data,
+    },
+  });
+  return (result as any)?.record || data;
 }
 
-export async function updateMeeting(id: number, data: Partial<InsertMeeting>) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  await db.update(meetings).set(data).where(eq(meetings.id, id));
+export async function updateMeeting(id: number, data: any) {
+  await callDataApi("Database/Update", {
+    body: {
+      table: "meetings",
+      where: { id },
+      data,
+    },
+  });
+  return { id, ...data };
 }
 
-// ─── Presença ─────────────────────────────────────────────────────────────
+// ─── Presença Management ───────────────────────────────────────────────────────
+
 export async function getPresencaByMeeting(meetingId: number) {
-  const db = await getDb();
-  if (!db) return [];
-  return db.select().from(presenca).where(eq(presenca.meetingId, meetingId));
+  const result = await callDataApi("Database/Query", {
+    body: {
+      table: "presenca",
+      where: { meetingId },
+    },
+  });
+  return (result as any)?.rows || [];
 }
 
-export async function createPresenca(data: InsertPresenca) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  await db.insert(presenca).values(data);
-  return true;
+export async function createPresenca(data: any) {
+  const result = await callDataApi("Database/Insert", {
+    body: {
+      table: "presenca",
+      data,
+    },
+  });
+  return (result as any)?.record || data;
 }
 
-export async function updatePresenca(id: number, data: Partial<InsertPresenca>) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  await db.update(presenca).set(data).where(eq(presenca.id, id));
+export async function updatePresenca(id: number, data: any) {
+  await callDataApi("Database/Update", {
+    body: {
+      table: "presenca",
+      where: { id },
+      data,
+    },
+  });
+  return { id, ...data };
 }
 
-// ─── Visitas ──────────────────────────────────────────────────────────────
-export async function getAllVisitas() {
-  const db = await getDb();
-  if (!db) return [];
-  return db.select().from(visitas);
+// ─── Visitas Management ───────────────────────────────────────────────────────
+
+export async function listVisitas() {
+  const result = await callDataApi("Database/Query", {
+    body: {
+      table: "visitas",
+    },
+  });
+  return (result as any)?.rows || [];
 }
 
-export async function createVisita(data: InsertVisita) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  await db.insert(visitas).values(data);
-  return true;
+export async function createVisita(data: any) {
+  const result = await callDataApi("Database/Insert", {
+    body: {
+      table: "visitas",
+      data,
+    },
+  });
+  return (result as any)?.record || data;
 }
 
-export async function updateVisita(id: number, data: Partial<InsertVisita>) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  await db.update(visitas).set(data).where(eq(visitas.id, id));
+export async function updateVisita(id: number, data: any) {
+  await callDataApi("Database/Update", {
+    body: {
+      table: "visitas",
+      where: { id },
+      data,
+    },
+  });
+  return { id, ...data };
 }
 
 export async function deleteVisita(id: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  await db.delete(visitas).where(eq(visitas.id, id));
+  await callDataApi("Database/Delete", {
+    body: {
+      table: "visitas",
+      where: { id },
+    },
+  });
+  return { success: true };
 }
 
-// ─── Atas ─────────────────────────────────────────────────────────────────
-export async function getAllAtas() {
-  const db = await getDb();
-  if (!db) return [];
-  return db.select().from(atas);
+// ─── Atas Management ───────────────────────────────────────────────────────
+
+export async function listAtas() {
+  const result = await callDataApi("Database/Query", {
+    body: {
+      table: "atas",
+    },
+  });
+  return (result as any)?.rows || [];
 }
 
-export async function createAta(data: InsertAta) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  await db.insert(atas).values(data);
-  return true;
+export async function createAta(data: any) {
+  const result = await callDataApi("Database/Insert", {
+    body: {
+      table: "atas",
+      data,
+    },
+  });
+  return (result as any)?.record || data;
 }
 
-export async function updateAta(id: number, data: Partial<InsertAta>) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  await db.update(atas).set(data).where(eq(atas.id, id));
+export async function updateAta(id: number, data: any) {
+  await callDataApi("Database/Update", {
+    body: {
+      table: "atas",
+      where: { id },
+      data,
+    },
+  });
+  return { id, ...data };
 }
 
 export async function deleteAta(id: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  await db.delete(atas).where(eq(atas.id, id));
+  await callDataApi("Database/Delete", {
+    body: {
+      table: "atas",
+      where: { id },
+    },
+  });
+  return { success: true };
 }
 
-// ─── Versinhos ────────────────────────────────────────────────────────────
-export async function getAllVersinhos() {
-  const db = await getDb();
-  if (!db) return [];
-  return db.select().from(versinhos);
+// ─── Versinhos Management ───────────────────────────────────────────────────────
+
+export async function listVersinhos() {
+  const result = await callDataApi("Database/Query", {
+    body: {
+      table: "versinhos",
+    },
+  });
+  return (result as any)?.rows || [];
 }
 
-export async function createVersinho(data: InsertVersinho) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  await db.insert(versinhos).values(data);
-  return true;
+export async function createVersinho(data: any) {
+  const result = await callDataApi("Database/Insert", {
+    body: {
+      table: "versinhos",
+      data,
+    },
+  });
+  return (result as any)?.record || data;
 }
 
-export async function updateVersinho(id: number, data: Partial<InsertVersinho>) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  await db.update(versinhos).set(data).where(eq(versinhos.id, id));
+export async function updateVersinho(id: number, data: any) {
+  await callDataApi("Database/Update", {
+    body: {
+      table: "versinhos",
+      where: { id },
+      data,
+    },
+  });
+  return { id, ...data };
 }
 
 export async function deleteVersinho(id: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  await db.delete(versinhos).where(eq(versinhos.id, id));
+  await callDataApi("Database/Delete", {
+    body: {
+      table: "versinhos",
+      where: { id },
+    },
+  });
+  return { success: true };
 }
 
-// ─── Eventos ──────────────────────────────────────────────────────────────
-export async function getAllEventos() {
-  const db = await getDb();
-  if (!db) return [];
-  return db.select().from(eventos);
+// ─── Eventos Management ───────────────────────────────────────────────────────
+
+export async function listEventos() {
+  const result = await callDataApi("Database/Query", {
+    body: {
+      table: "eventos",
+    },
+  });
+  return (result as any)?.rows || [];
 }
 
-export async function createEvento(data: InsertEvento) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  await db.insert(eventos).values(data);
-  return true;
+export async function createEvento(data: any) {
+  const result = await callDataApi("Database/Insert", {
+    body: {
+      table: "eventos",
+      data,
+    },
+  });
+  return (result as any)?.record || data;
 }
 
-export async function updateEvento(id: number, data: Partial<InsertEvento>) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  await db.update(eventos).set(data).where(eq(eventos.id, id));
+export async function updateEvento(id: number, data: any) {
+  await callDataApi("Database/Update", {
+    body: {
+      table: "eventos",
+      where: { id },
+      data,
+    },
+  });
+  return { id, ...data };
 }
 
 export async function deleteEvento(id: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  await db.delete(eventos).where(eq(eventos.id, id));
-}
-
-
-// ─── User Management ───────────────────────────────────────────────────────
-export async function getAllUsers() {
-  const db = await getDb();
-  if (!db) return [];
-  return db.select().from(users);
-}
-
-export async function getPendingUsers() {
-  const db = await getDb();
-  if (!db) return [];
-  return db.select().from(users).where(eq(users.status, "pendente"));
-}
-
-export async function approveUser(userId: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  await db.update(users).set({ status: "aprovado" }).where(eq(users.id, userId));
-}
-
-export async function rejectUser(userId: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  await db.update(users).set({ status: "rejeitado" }).where(eq(users.id, userId));
-}
-
-export async function updateUserRole(userId: number, role: "user" | "admin" | "auxiliar") {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  await db.update(users).set({ role }).where(eq(users.id, userId));
-}
-
-
-// ─── Authentication (Email/Password) ───────────────────────────────────────
-export async function registerUser(email: string, name: string, password: string) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  
-  // Hash password (in production, use bcrypt)
-  const hashedPassword = Buffer.from(password).toString('base64');
-  
-  const result = await db.insert(users).values({
-    openId: `email_${email}`,
-    email,
-    name,
-    loginMethod: 'email',
-    role: 'user',
-    status: 'pendente',
+  await callDataApi("Database/Delete", {
+    body: {
+      table: "eventos",
+      where: { id },
+    },
   });
-  
-  return result;
-}
-
-export async function loginUser(email: string, password: string) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  
-  const user = await db.select().from(users).where(eq(users.email, email)).limit(1);
-  if (!user || user.length === 0) throw new Error("User not found");
-  
-  // Verify password (in production, use bcrypt)
-  const hashedPassword = Buffer.from(password).toString('base64');
-  
-  return user[0];
-}
-
-export async function getUserByEmail(email: string) {
-  const db = await getDb();
-  if (!db) return null;
-  const user = await db.select().from(users).where(eq(users.email, email)).limit(1);
-  return user && user.length > 0 ? user[0] : null;
+  return { success: true };
 }

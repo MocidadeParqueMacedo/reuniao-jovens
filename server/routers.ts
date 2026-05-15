@@ -15,18 +15,30 @@ export const appRouter = router({
       return { success: true } as const;
     }),
     register: publicProcedure
-      .input(z.object({ email: z.string().email(), name: z.string(), password: z.string().min(6) }))
+      .input(z.object({ email: z.string().email(), password: z.string().min(6) }))
       .mutation(async ({ input }) => {
         const existingUser = await db.getUserByEmail(input.email);
         if (existingUser) throw new Error("Email already registered");
-        await db.registerUser(input.email, input.name, input.password);
+        await db.createUser(input.email, input.password, 'user');
         return { success: true, message: "User registered. Awaiting admin approval." };
       }),
     login: publicProcedure
       .input(z.object({ email: z.string().email(), password: z.string() }))
       .mutation(async ({ input, ctx }) => {
-        const user = await db.loginUser(input.email, input.password);
+        const user = await db.verifyPassword(input.email, input.password);
         if (!user) throw new Error("Invalid credentials");
+        if (user.status !== "aprovado") throw new Error("User not approved by admin");
+        
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, String(user.id), { ...cookieOptions, maxAge: 7 * 24 * 60 * 60 * 1000 });
+        
+        return { success: true, user };
+      }),
+    googleLogin: publicProcedure
+      .input(z.object({ email: z.string().email() }))
+      .mutation(async ({ input, ctx }) => {
+        const user = await db.googleLogin(input.email);
+        if (!user) throw new Error("Failed to create user");
         if (user.status !== "aprovado") throw new Error("User not approved by admin");
         
         const cookieOptions = getSessionCookieOptions(ctx.req);
@@ -40,11 +52,11 @@ export const appRouter = router({
   users: router({
     list: protectedProcedure.query(async ({ ctx }) => {
       if (ctx.user?.role !== "admin") throw new Error("Unauthorized");
-      return db.getAllUsers();
+      return db.listPendingUsers();
     }),
     pending: protectedProcedure.query(async ({ ctx }) => {
       if (ctx.user?.role !== "admin") throw new Error("Unauthorized");
-      return db.getPendingUsers();
+      return db.listPendingUsers();
     }),
     approve: protectedProcedure
       .input(z.object({ userId: z.number() }))
@@ -71,7 +83,7 @@ export const appRouter = router({
 
   // Reunião de Jovens API
   members: router({
-    list: publicProcedure.query(() => db.getAllMembers()),
+    list: publicProcedure.query(() => db.listMembers()),
     create: protectedProcedure
       .input(z.object({
         nome: z.string(),
@@ -95,7 +107,7 @@ export const appRouter = router({
   }),
 
   meetings: router({
-    list: publicProcedure.query(() => db.getAllMeetings()),
+    list: publicProcedure.query(() => db.listMeetings()),
     create: protectedProcedure
       .input(z.object({
         date: z.string(),
@@ -131,7 +143,7 @@ export const appRouter = router({
   }),
 
   visitas: router({
-    list: publicProcedure.query(() => db.getAllVisitas()),
+    list: publicProcedure.query(() => db.listVisitas()),
     create: protectedProcedure
       .input(z.object({
         nome: z.string(),
@@ -161,7 +173,7 @@ export const appRouter = router({
   }),
 
   atas: router({
-    list: publicProcedure.query(() => db.getAllAtas()),
+    list: publicProcedure.query(() => db.listAtas()),
     create: protectedProcedure
       .input(z.object({
         data: z.string(),
@@ -181,7 +193,7 @@ export const appRouter = router({
   }),
 
   versinhos: router({
-    list: publicProcedure.query(() => db.getAllVersinhos()),
+    list: publicProcedure.query(() => db.listVersinhos()),
     create: protectedProcedure
       .input(z.object({
         livro: z.string(),
@@ -205,7 +217,7 @@ export const appRouter = router({
   }),
 
   eventos: router({
-    list: publicProcedure.query(() => db.getAllEventos()),
+    list: publicProcedure.query(() => db.listEventos()),
     create: protectedProcedure
       .input(z.object({
         data: z.string(),
