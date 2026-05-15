@@ -1,5 +1,8 @@
+import * as WebBrowser from "expo-web-browser";
 import * as Google from "expo-auth-session/providers/google";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+
+WebBrowser.maybeCompleteAuthSession();
 
 // Configure your Google OAuth credentials here
 const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || "";
@@ -8,7 +11,6 @@ export function useGoogleAuth() {
   const [userInfo, setUserInfo] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const authInFlightRef = useRef(false);
 
   // Setup Google OAuth request
   const [request, response, promptAsync] = Google.useAuthRequest({
@@ -20,8 +22,6 @@ export function useGoogleAuth() {
   useEffect(() => {
     if (response?.type === "success") {
       handleGoogleSignIn(response.authentication?.accessToken);
-    } else if (response?.type === "error") {
-      setError("Erro ao fazer login com Google: " + (response.error?.message || "Desconhecido"));
     }
   }, [response]);
 
@@ -57,34 +57,13 @@ export function useGoogleAuth() {
   };
 
   const signIn = async () => {
-    // Proteção contra cliques duplos
-    if (authInFlightRef.current) {
-      return;
-    }
-    
     try {
-      authInFlightRef.current = true;
-      setError(null);
-      setLoading(true);
-      
-      if (!request) {
-        setError("Google OAuth não está configurado");
-        return;
-      }
-
       const result = await promptAsync();
-      
-      if (result?.type === "cancel") {
-        setError("Login cancelado pelo usuário");
-      } else if (result?.type === "error") {
-        setError("Erro ao fazer login: " + (result.error?.message || "Desconhecido"));
+      if (result?.type !== "success") {
+        setError("Login cancelado");
       }
-      // Se type === "success", o useEffect acima vai processar
     } catch (err: any) {
       setError(err.message || "Erro ao iniciar login com Google");
-    } finally {
-      setLoading(false);
-      authInFlightRef.current = false;
     }
   };
 

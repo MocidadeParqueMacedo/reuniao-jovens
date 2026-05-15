@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { DB, Member, Meeting, CalEvent, Visitor, Visita, Ata, Versinho, ensureNextSundayMeeting, checkThreeConsecutiveAbsences } from './db';
 
@@ -52,33 +51,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   });
   const [toast, setToast] = useState('');
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Carregar estado de autenticação ao iniciar
-  useEffect(() => {
-    const loadAuthState = async () => {
-      try {
-        const saved = await AsyncStorage.getItem('app_autenticado');
-        if (saved === 'true') {
-          setAutenticado(true);
-        }
-      } catch (error) {
-        console.error('Erro ao carregar estado de autenticação:', error);
-      }
-    };
-    loadAuthState();
-  }, []);
-
-  // Salvar estado de autenticação quando mudar
-  useEffect(() => {
-    const saveAuthState = async () => {
-      try {
-        await AsyncStorage.setItem('app_autenticado', autenticado ? 'true' : 'false');
-      } catch (error) {
-        console.error('Erro ao salvar estado de autenticação:', error);
-      }
-    };
-    saveAuthState();
-  }, [autenticado]);
 
   const reload = useCallback(async () => {
     await ensureNextSundayMeeting();
