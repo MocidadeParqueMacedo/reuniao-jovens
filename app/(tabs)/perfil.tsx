@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Alert, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useApp } from '@/lib/app-context';
 import { loadCurrentUser, saveCurrentUser } from '@/lib/auth-persistence';
@@ -125,31 +125,19 @@ export default function PerfilScreen() {
 
   const handleLogout = async () => {
     console.log('🚪 Botão logout clicado');
-    Alert.alert(
-      'Fazer Logout',
-      'Tem certeza que deseja sair da aplicação?',
-      [
-        { text: 'Cancelar', onPress: () => console.log('Logout cancelado'), style: 'cancel' },
-        {
-          text: 'Logout',
-          onPress: async () => {
-            try {
-              console.log('🚪 Iniciando logout...');
-              await saveCurrentUser(null);
-              console.log('✅ Dados limpos');
-              await logout();
-              console.log('✅ Logout executado');
-              router.replace('/login');
-              console.log('✅ Navegado para login');
-            } catch (error) {
-              console.error('❌ Erro ao fazer logout:', error);
-              Alert.alert('Erro', 'Erro ao fazer logout. Tente novamente.');
-            }
-          },
-          style: 'destructive',
-        },
-      ]
-    );
+    try {
+      console.log('🚪 Iniciando logout...');
+      await saveCurrentUser(null);
+      console.log('✅ Dados limpos');
+      await logout();
+      console.log('✅ Logout executado');
+      router.replace('/login');
+      console.log('✅ Navegado para login');
+    } catch (error) {
+      console.error('❌ Erro ao fazer logout:', error);
+      // Erro ao fazer logout
+      console.log('Erro ao fazer logout');
+    }
   };
 
   if (!autenticado) {
