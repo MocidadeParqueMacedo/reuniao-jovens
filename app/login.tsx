@@ -8,11 +8,10 @@ import { useGoogleAuth } from '@/lib/useGoogleAuth';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { showToast, tentarLogin } = useApp();
+  const { showToast, setAutenticado } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isRegister, setIsRegister] = useState(false);
-  const [name, setName] = useState('');
 
   // tRPC mutations
   const loginMutation = trpc.auth.login.useMutation();
@@ -35,7 +34,7 @@ export default function LoginScreen() {
       await googleSignIn();
       showToast('Login com Google realizado com sucesso!', 'success');
       // Marcar como autenticado e navegar
-      tentarLogin('google-oauth');
+      setAutenticado(true);
       router.replace('/(tabs)');
     } catch (error: any) {
       showToast(error.message || 'Erro ao fazer login com Google', 'error');
@@ -52,7 +51,7 @@ export default function LoginScreen() {
       const result = await loginMutation.mutateAsync({ email, password });
       showToast('Login realizado com sucesso!', 'success');
       // Marcar como autenticado e navegar
-      tentarLogin('email-password');
+      setAutenticado(true);
       router.replace('/(tabs)');
     } catch (error: any) {
       showToast(error.message || 'Erro ao fazer login', 'error');
@@ -75,7 +74,6 @@ export default function LoginScreen() {
       showToast('Cadastro realizado! Aguardando aprovação do administrador.', 'success');
       setEmail('');
       setPassword('');
-      setName('');
       setIsRegister(false);
     } catch (error: any) {
       showToast(error.message || 'Erro ao cadastrar', 'error');
@@ -100,19 +98,6 @@ export default function LoginScreen() {
 
           {/* Form */}
           <View className="gap-4">
-            {isRegister && (
-              <View>
-                <Text className="text-foreground font-semibold mb-2">Nome</Text>
-                <TextInput
-                  placeholder="Seu nome completo"
-                  value={name}
-                  onChangeText={setName}
-                  className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-                  editable={!isLoading}
-                />
-              </View>
-            )}
-
             <View>
               <Text className="text-foreground font-semibold mb-2">Email</Text>
               <TextInput

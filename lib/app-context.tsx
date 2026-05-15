@@ -3,11 +3,11 @@ import * as Notifications from 'expo-notifications';
 import { DB, Member, Meeting, CalEvent, Visitor, Visita, Ata, Versinho, ensureNextSundayMeeting, checkThreeConsecutiveAbsences } from './db';
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
-const SENHA_CORRETA = 'HOUVEUMSILENCIONOCEU';
+// Autenticação agora é apenas via Google OAuth - sem senha local
 
 interface AuthState {
   autenticado: boolean;
-  tentarLogin: (senha: string) => boolean;
+  setAutenticado: (value: boolean) => void;
   logout: () => void;
 }
 
@@ -62,11 +62,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => { reload(); }, [reload]);
-
-  const tentarLogin = useCallback((senha: string): boolean => {
-    if (senha === SENHA_CORRETA) { setAutenticado(true); return true; }
-    return false;
-  }, []);
 
   const logout = useCallback(() => setAutenticado(false), []);
 
@@ -154,7 +149,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AppContext.Provider value={{
-      autenticado, tentarLogin, logout,
+      autenticado, setAutenticado, logout,
       ...data,
       reload,
       saveMembers, saveMeetings, saveEvents, saveVisitors,

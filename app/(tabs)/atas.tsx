@@ -6,7 +6,6 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
-import { LoginModal } from '@/components/LoginModal';
 import { useApp } from '@/lib/app-context';
 import { Ata, formatDate } from '@/lib/db';
 
@@ -176,7 +175,6 @@ function ModalAtaDetalhe({ ata, members, onClose }: { ata: Ata | null; members: 
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 export default function AtasScreen() {
   const { atas, members, saveAtas, autenticado, showToast } = useApp();
-  const [showLogin, setShowLogin] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [selectedAta, setSelectedAta] = useState<Ata | null>(null);
 
@@ -213,7 +211,6 @@ export default function AtasScreen() {
             <Text style={atStyles.btnPrimaryText}>🔓 Entrar</Text>
           </TouchableOpacity>
         </View>
-        <LoginModal visible={showLogin} onSuccess={() => setShowLogin(false)} onCancel={() => setShowLogin(false)} />
       </ScreenContainer>
     );
   }
@@ -265,7 +262,6 @@ export default function AtasScreen() {
 
       <ModalNovaAta visible={showModal} onClose={() => setShowModal(false)} onSave={handleSave} />
       <ModalAtaDetalhe ata={selectedAta} members={members} onClose={() => setSelectedAta(null)} />
-      <LoginModal visible={showLogin} onSuccess={() => setShowLogin(false)} onCancel={() => setShowLogin(false)} />
     </ScreenContainer>
   );
 }

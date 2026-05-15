@@ -5,7 +5,6 @@ import {
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
-import { LoginModal } from '@/components/LoginModal';
 import { useApp } from '@/lib/app-context';
 
 interface VisitaLocal {
@@ -19,7 +18,6 @@ interface VisitaLocal {
 
 export default function VisitasScreen() {
   const { autenticado, showToast } = useApp();
-  const [showLogin, setShowLogin] = useState(false);
   const [showMenu, setShowMenu] = useState(true);
   const [submenu, setSubmenu] = useState<'comuns' | 'locais' | null>(null);
 
@@ -153,7 +151,6 @@ export default function VisitasScreen() {
             <Text style={vStyles.btnPrimaryText}>🔓 Entrar</Text>
           </TouchableOpacity>
         </View>
-        <LoginModal visible={showLogin} onSuccess={() => setShowLogin(false)} onCancel={() => setShowLogin(false)} />
       </ScreenContainer>
     );
   }
@@ -374,7 +371,6 @@ export default function VisitasScreen() {
         </View>
       </Modal>
 
-      <LoginModal visible={showLogin} onSuccess={() => setShowLogin(false)} onCancel={() => setShowLogin(false)} />
     </ScreenContainer>
   );
 }

@@ -5,7 +5,6 @@ import {
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
-import { LoginModal } from '@/components/LoginModal';
 import { useApp } from '@/lib/app-context';
 import { formatDate, todayISO, CalEvent, Visitor, Visita } from '@/lib/db';
 
@@ -235,8 +234,6 @@ export default function EventosScreen() {
   const { events, meetings, members, visitas, saveEvents, autenticado, showToast } = useApp();
   const [annualYear, setAnnualYear] = useState(new Date().getFullYear());
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
-  const [showLoginModal, setShowLoginModal] = useState(false);
-  const [showEventModal, setShowEventModal] = useState(false);
 
   useFocusEffect(useCallback(() => {
     setSelectedDay(null);
@@ -272,7 +269,6 @@ export default function EventosScreen() {
 
   function handleAddEvent() {
     if (autenticado) { setShowEventModal(true); }
-    else { setShowLoginModal(true); }
   }
 
   return (
@@ -341,13 +337,7 @@ export default function EventosScreen() {
         </View>
       </ScrollView>
 
-      <LoginModal
-        visible={showLoginModal}
-        onSuccess={() => { setShowLoginModal(false); setShowEventModal(true); }}
-        onCancel={() => setShowLoginModal(false)}
-      />
       <ModalNovoEvento
-        visible={showEventModal}
         onClose={() => setShowEventModal(false)}
         onSave={handleSaveEvent}
       />

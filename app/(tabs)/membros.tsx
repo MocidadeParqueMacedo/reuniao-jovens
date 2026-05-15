@@ -6,7 +6,6 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
-import { LoginModal } from '@/components/LoginModal';
 import { useApp } from '@/lib/app-context';
 import { Member, avatarColor, initials, genderLabel, contLabel } from '@/lib/db';
 
@@ -220,7 +219,6 @@ function GroupList({ members, onEdit, onDelete }: { members: Member[]; onEdit: (
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 export default function MembrosScreen() {
   const { members, saveMembers, autenticado, showToast } = useApp();
-  const [showLogin, setShowLogin] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editMember, setEditMember] = useState<Member | null>(null);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
@@ -312,7 +310,6 @@ export default function MembrosScreen() {
             <Text style={mStyles.btnPrimaryText}>🔓 Entrar</Text>
           </TouchableOpacity>
         </View>
-        <LoginModal visible={showLogin} onSuccess={() => setShowLogin(false)} onCancel={() => setShowLogin(false)} />
       </ScreenContainer>
     );
   }
@@ -448,7 +445,6 @@ export default function MembrosScreen() {
         onClose={() => setShowModal(false)}
         onSave={handleSave}
       />
-      <LoginModal visible={showLogin} onSuccess={() => setShowLogin(false)} onCancel={() => setShowLogin(false)} />
     </ScreenContainer>
   );
 }

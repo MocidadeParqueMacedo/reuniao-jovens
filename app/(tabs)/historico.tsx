@@ -6,7 +6,6 @@ import {
 import { Picker } from '@react-native-picker/picker';
 import { useFocusEffect } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
-import { LoginModal } from '@/components/LoginModal';
 import { PresencaChart } from '@/components/PresencaChart';
 import { useApp } from '@/lib/app-context';
 import { formatDate, todayISO, Member, Visitor, PERIODOS_MAP, getDateRangeFromPeriod } from '@/lib/db';
@@ -360,7 +359,6 @@ function filterMembersByGroup(members: Member[], grupo: 'todos' | 'irmaos' | 'ir
 // ─── Main Histórico Screen ─────────────────────────────────────────────────────
 export default function HistoricoScreen() {
   const { meetings, members, autenticado, showToast, saveMeetings, checkAndNotifyAbsences } = useApp();
-  const [showLogin, setShowLogin] = useState(false);
   const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
 
   // ─── Filtros ───────────────────────────────────────────────────────────────
@@ -446,7 +444,6 @@ export default function HistoricoScreen() {
             <Text style={hStyles.btnPrimaryText}>🔓 Entrar</Text>
           </TouchableOpacity>
         </View>
-        <LoginModal visible={showLogin} onSuccess={() => setShowLogin(false)} onCancel={() => setShowLogin(false)} />
       </ScreenContainer>
     );
   }
@@ -671,7 +668,6 @@ export default function HistoricoScreen() {
         </View>
       </Modal>
 
-      <LoginModal visible={showLogin} onSuccess={() => setShowLogin(false)} onCancel={() => setShowLogin(false)} />
     </ScreenContainer>
   );
 }

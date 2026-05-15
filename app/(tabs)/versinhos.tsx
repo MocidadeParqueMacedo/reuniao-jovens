@@ -5,7 +5,6 @@ import {
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
-import { LoginModal } from '@/components/LoginModal';
 import { useApp } from '@/lib/app-context';
 import { Versinho, Member, formatDate } from '@/lib/db';
 
@@ -240,7 +239,6 @@ function VersinhoDetalhe({ v, members, onBack, onDelete }: {
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 export default function VersinhoScreen() {
   const { versinhos, members, saveVersinhos, autenticado, showToast } = useApp();
-  const [showLogin, setShowLogin] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [selectedVersinho, setSelectedVersinho] = useState<Versinho | null>(null);
 
@@ -278,7 +276,6 @@ export default function VersinhoScreen() {
             <Text style={vStyles.btnPrimaryText}>🔓 Entrar</Text>
           </TouchableOpacity>
         </View>
-        <LoginModal visible={showLogin} onSuccess={() => setShowLogin(false)} onCancel={() => setShowLogin(false)} />
       </ScreenContainer>
     );
   }
@@ -334,7 +331,6 @@ export default function VersinhoScreen() {
       </ScrollView>
 
       <ModalNovoVersinho visible={showModal} onClose={() => setShowModal(false)} onSave={handleSave} />
-      <LoginModal visible={showLogin} onSuccess={() => setShowLogin(false)} onCancel={() => setShowLogin(false)} />
     </ScreenContainer>
   );
 }
