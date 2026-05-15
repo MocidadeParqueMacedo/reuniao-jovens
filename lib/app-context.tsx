@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import * as Notifications from 'expo-notifications';
 import { DB, Member, Meeting, CalEvent, Visitor, Visita, Ata, Versinho, ensureNextSundayMeeting, checkThreeConsecutiveAbsences } from './db';
+import { loadCurrentUser, loadRegisteredUsers } from './auth-persistence';
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 // Autenticação agora é apenas via Google OAuth - sem senha local
@@ -51,6 +52,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   });
   const [toast, setToast] = useState('');
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Verificar autenticação ao iniciar o app
+  useEffect(() => {
+    const checkAuth = async () => {
+      const currentUserEmail = await loadCurrentUser();
+      if (currentUserEmail) {
+        // Verifica se o usuário ainda está aprovado
+        const users = await loadRegisteredUsers();
+        const user = users[currentUserEmail];
+        if (user && user.approved) {
+          setAutenticado(true);
+        } else {
+          // Usuário não está mais aprovado, limpa a sessão
+          setAutenticado(false);
+        }
+      }
+    };
+    checkAuth();
+  }, []);
 
   const reload = useCallback(async () => {
     await ensureNextSundayMeeting();
