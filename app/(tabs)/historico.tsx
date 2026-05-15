@@ -380,7 +380,6 @@ export default function HistoricoScreen() {
   const [showChart, setShowChart] = useState(false);
 
   useFocusEffect(useCallback(() => {
-    if (!autenticado) setShowLogin(true);
     // Lançar automaticamente a próxima reunião de domingo
     ensureNextSundayMeeting();
     // Verificar e notificar membros com 3 faltas consecutivas
@@ -440,9 +439,6 @@ export default function HistoricoScreen() {
         <View style={hStyles.lockedContainer}>
           <Text style={hStyles.lockedIcon}>🔐</Text>
           <Text style={hStyles.lockedText}>Esta seção requer autenticação</Text>
-          <TouchableOpacity style={hStyles.btnPrimary} onPress={() => setShowLogin(true)}>
-            <Text style={hStyles.btnPrimaryText}>🔓 Entrar</Text>
-          </TouchableOpacity>
         </View>
       </ScreenContainer>
     );

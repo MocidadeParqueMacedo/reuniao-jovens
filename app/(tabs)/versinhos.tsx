@@ -243,7 +243,6 @@ export default function VersinhoScreen() {
   const [selectedVersinho, setSelectedVersinho] = useState<Versinho | null>(null);
 
   useFocusEffect(useCallback(() => {
-    if (!autenticado) setShowLogin(true);
   }, [autenticado]));
 
   async function handleSave(data: Omit<Versinho, 'id'>) {
@@ -272,9 +271,6 @@ export default function VersinhoScreen() {
         <View style={vStyles.lockedContainer}>
           <Text style={vStyles.lockedIcon}>🔐</Text>
           <Text style={vStyles.lockedText}>Esta seção requer autenticação</Text>
-          <TouchableOpacity style={vStyles.btnPrimary} onPress={() => setShowLogin(true)}>
-            <Text style={vStyles.btnPrimaryText}>🔓 Entrar</Text>
-          </TouchableOpacity>
         </View>
       </ScreenContainer>
     );

@@ -227,7 +227,6 @@ export default function MembrosScreen() {
   const [showFab, setShowFab] = useState(false);
 
   useFocusEffect(useCallback(() => {
-    if (!autenticado) setShowLogin(true);
   }, [autenticado]));
 
   function openSubmenu(type: string) {
@@ -306,9 +305,6 @@ export default function MembrosScreen() {
         <View style={mStyles.lockedContainer}>
           <Text style={mStyles.lockedIcon}>🔐</Text>
           <Text style={mStyles.lockedText}>Esta seção requer autenticação</Text>
-          <TouchableOpacity style={mStyles.btnPrimary} onPress={() => setShowLogin(true)}>
-            <Text style={mStyles.btnPrimaryText}>🔓 Entrar</Text>
-          </TouchableOpacity>
         </View>
       </ScreenContainer>
     );

@@ -179,7 +179,6 @@ export default function AtasScreen() {
   const [selectedAta, setSelectedAta] = useState<Ata | null>(null);
 
   useFocusEffect(useCallback(() => {
-    if (!autenticado) setShowLogin(true);
   }, [autenticado]));
 
   async function handleSave(data: Omit<Ata, 'id' | 'criadaEm'>) {
@@ -207,9 +206,6 @@ export default function AtasScreen() {
         <View style={atStyles.lockedContainer}>
           <Text style={atStyles.lockedIcon}>🔐</Text>
           <Text style={atStyles.lockedText}>Esta seção requer autenticação</Text>
-          <TouchableOpacity style={atStyles.btnPrimary} onPress={() => setShowLogin(true)}>
-            <Text style={atStyles.btnPrimaryText}>🔓 Entrar</Text>
-          </TouchableOpacity>
         </View>
       </ScreenContainer>
     );

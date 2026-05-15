@@ -36,7 +36,6 @@ export default function VisitasScreen() {
   const [formObs, setFormObs] = useState('');
 
   useFocusEffect(useCallback(() => {
-    if (!autenticado) setShowLogin(true);
   }, [autenticado]));
 
   function abrirSubmenu(tipo: 'comuns' | 'locais') {
@@ -147,9 +146,6 @@ export default function VisitasScreen() {
         <View style={vStyles.lockedContainer}>
           <Text style={vStyles.lockedIcon}>🔐</Text>
           <Text style={vStyles.lockedText}>Esta seção requer autenticação</Text>
-          <TouchableOpacity style={vStyles.btnPrimary} onPress={() => setShowLogin(true)}>
-            <Text style={vStyles.btnPrimaryText}>🔓 Entrar</Text>
-          </TouchableOpacity>
         </View>
       </ScreenContainer>
     );
