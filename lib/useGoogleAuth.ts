@@ -1,26 +1,20 @@
 import * as WebBrowser from "expo-web-browser";
 import * as Google from "expo-auth-session/providers/google";
 import { useEffect, useState } from "react";
-import { trpc } from "./trpc";
 
 WebBrowser.maybeCompleteAuthSession();
 
 // Configure your Google OAuth credentials here
-// You need to create OAuth credentials in Google Cloud Console
 const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || "";
-const GOOGLE_CLIENT_SECRET = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_SECRET || "";
 
 export function useGoogleAuth() {
   const [userInfo, setUserInfo] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const googleLoginMutation = trpc.auth.googleLogin.useMutation();
-
   // Setup Google OAuth request
   const [request, response, promptAsync] = Google.useAuthRequest({
     clientId: GOOGLE_CLIENT_ID,
-    clientSecret: GOOGLE_CLIENT_SECRET,
     scopes: ["profile", "email"],
   });
 
@@ -51,14 +45,8 @@ export function useGoogleAuth() {
       }
 
       const googleUserInfo = await userInfoResponse.json();
-
-      // Login via backend
-      const result = await googleLoginMutation.mutateAsync({
-        email: googleUserInfo.email,
-      });
-
-      setUserInfo(result.user);
-      return result.user;
+      setUserInfo(googleUserInfo);
+      return googleUserInfo;
     } catch (err: any) {
       const errorMessage = err.message || "Erro ao fazer login com Google";
       setError(errorMessage);
@@ -86,8 +74,8 @@ export function useGoogleAuth() {
 
   return {
     userInfo,
-    loading: loading || googleLoginMutation.isPending,
-    error: error || (googleLoginMutation.isError ? "Erro ao fazer login" : null),
+    loading,
+    error,
     signIn,
     signOut,
     isReady: !!request,
