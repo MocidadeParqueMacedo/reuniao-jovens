@@ -39,11 +39,11 @@ export default function LoginScreen() {
     try {
       setIsLoading(true);
 
-      console.log('DEBUG LOGIN:', { email, registeredUsersKeys: Object.keys(registeredUsers) });
+      // Recarregar usuários antes de validar (garante dados atualizados)
+      const currentUsers = await loadRegisteredUsers();
 
       // Check if it's admin
       if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-        console.log('Admin login');
         setAutenticado(true);
         await saveCurrentUser(email);
         alert('Login de admin realizado com sucesso!');
@@ -51,10 +51,8 @@ export default function LoginScreen() {
       }
 
       // Check if user exists
-      const user = registeredUsers[email];
-      console.log('User found:', user);
+      const user = currentUsers[email];
       if (!user) {
-        console.log('User not found');
         alert('Conta não encontrada.\n\nVocê não tem uma conta registrada com este email. Por favor, crie uma conta primeiro.');
         return;
       }
