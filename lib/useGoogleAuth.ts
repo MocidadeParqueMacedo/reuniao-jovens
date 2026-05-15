@@ -22,6 +22,8 @@ export function useGoogleAuth() {
   useEffect(() => {
     if (response?.type === "success") {
       handleGoogleSignIn(response.authentication?.accessToken);
+    } else if (response?.type === "error") {
+      setError("Erro ao fazer login com Google: " + (response.error?.message || "Desconhecido"));
     }
   }, [response]);
 
@@ -58,12 +60,26 @@ export function useGoogleAuth() {
 
   const signIn = async () => {
     try {
-      const result = await promptAsync();
-      if (result?.type !== "success") {
-        setError("Login cancelado");
+      setError(null);
+      setLoading(true);
+      
+      if (!request) {
+        setError("Google OAuth não está configurado");
+        return;
       }
+
+      const result = await promptAsync();
+      
+      if (result?.type === "cancel") {
+        setError("Login cancelado pelo usuário");
+      } else if (result?.type === "error") {
+        setError("Erro ao fazer login: " + (result.error?.message || "Desconhecido"));
+      }
+      // Se type === "success", o useEffect acima vai processar
     } catch (err: any) {
       setError(err.message || "Erro ao iniciar login com Google");
+    } finally {
+      setLoading(false);
     }
   };
 
