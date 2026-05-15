@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '@/lib/theme-provider';
 import { AppProvider } from '@/lib/app-context';
 import { Toast } from '@/components/Toast';
+import { OfflineNotice } from '@/components/OfflineNotice';
 import { trpc } from '@/lib/trpc';
 import { createTRPCClient, httpBatchLink } from '@trpc/client';
 import superjson from 'superjson';
@@ -42,6 +43,7 @@ export default function RootLayout() {
                   <Stack.Screen name="admin" options={{ headerShown: false }} />
                   <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                 </Stack>
+                <OfflineNotice />
                 <Toast />
                 <StatusBar style="light" />
               </AppProvider>
