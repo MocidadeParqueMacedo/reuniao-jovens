@@ -8,7 +8,7 @@ import { useGoogleAuth } from '@/lib/useGoogleAuth';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { showToast } = useApp();
+  const { showToast, tentarLogin } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isRegister, setIsRegister] = useState(false);
@@ -22,59 +22,63 @@ export default function LoginScreen() {
   // Monitor Google OAuth errors
   useEffect(() => {
     if (googleError) {
-      showToast(googleError);
+      showToast(googleError, 'error');
     }
-  }, [googleError]);
+  }, [googleError, showToast]);
 
   const handleGoogleLogin = async () => {
     if (!googleReady) {
-      showToast('Google OAuth não está configurado. Configure EXPO_PUBLIC_GOOGLE_CLIENT_ID.');
+      showToast('Google OAuth não está configurado. Configure EXPO_PUBLIC_GOOGLE_CLIENT_ID.', 'error');
       return;
     }
     try {
       await googleSignIn();
-      showToast('Login com Google realizado com sucesso!');
+      showToast('Login com Google realizado com sucesso!', 'success');
+      // Marcar como autenticado e navegar
+      tentarLogin('google-oauth');
       router.replace('/(tabs)');
     } catch (error: any) {
-      showToast(error.message || 'Erro ao fazer login com Google');
+      showToast(error.message || 'Erro ao fazer login com Google', 'error');
     }
   };
 
   const handleLogin = async () => {
     if (!email || !password) {
-      showToast('Por favor, preencha todos os campos');
+      showToast('Por favor, preencha todos os campos', 'error');
       return;
     }
 
     try {
       const result = await loginMutation.mutateAsync({ email, password });
-      showToast('Login realizado com sucesso!');
+      showToast('Login realizado com sucesso!', 'success');
+      // Marcar como autenticado e navegar
+      tentarLogin('email-password');
       router.replace('/(tabs)');
     } catch (error: any) {
-      showToast(error.message || 'Erro ao fazer login');
+      showToast(error.message || 'Erro ao fazer login', 'error');
     }
   };
 
   const handleRegister = async () => {
-    if (!email || !password || !name) {
-      showToast('Por favor, preencha todos os campos');
+    if (!email || !password) {
+      showToast('Por favor, preencha email e senha', 'error');
       return;
     }
 
     if (password.length < 6) {
-      showToast('Senha deve ter pelo menos 6 caracteres');
+      showToast('Senha deve ter pelo menos 6 caracteres', 'error');
       return;
     }
 
     try {
       await registerMutation.mutateAsync({ email, password });
-      showToast('Cadastro realizado! Aguardando aprovação do administrador.');
+      showToast('Cadastro realizado! Aguardando aprovação do administrador.', 'success');
       setEmail('');
       setPassword('');
       setName('');
       setIsRegister(false);
     } catch (error: any) {
-      showToast(error.message || 'Erro ao cadastrar');
+      showToast(error.message || 'Erro ao cadastrar', 'error');
     }
   };
 
@@ -160,7 +164,11 @@ export default function LoginScreen() {
               disabled={isLoading}
               className="bg-surface border border-border rounded-lg py-4 mt-4 flex-row items-center justify-center"
             >
-              <Text className="text-foreground font-semibold text-lg">🔐 Entrar com Google</Text>
+              {googleLoading ? (
+                <ActivityIndicator color="#4f46e5" />
+              ) : (
+                <Text className="text-foreground font-semibold text-lg">🔐 Entrar com Google</Text>
+              )}
             </TouchableOpacity>
           )}
 

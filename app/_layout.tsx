@@ -7,21 +7,7 @@ import { ThemeProvider } from '@/lib/theme-provider';
 import { AppProvider } from '@/lib/app-context';
 import { Toast } from '@/components/Toast';
 import { OfflineNotice } from '@/components/OfflineNotice';
-import { trpc } from '@/lib/trpc';
-import { createTRPCClient, httpBatchLink } from '@trpc/client';
-import superjson from 'superjson';
 import '../global.css';
-import type { AppRouter } from '@/server/routers';
-
-// Create TRPC client
-const trpcClient = createTRPCClient<AppRouter>({
-  links: [
-    httpBatchLink({
-      url: 'http://localhost:3000/trpc',
-      transformer: superjson,
-    }),
-  ],
-}) as any;
 
 // Create Query Client
 const queryClient = new QueryClient({
@@ -34,22 +20,20 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <trpc.Provider client={trpcClient as any} queryClient={queryClient}>
-          <QueryClientProvider client={queryClient}>
-            <ThemeProvider>
-              <AppProvider>
-                <Stack screenOptions={{ headerShown: false }}>
-                  <Stack.Screen name="login" options={{ headerShown: false }} />
-                  <Stack.Screen name="admin" options={{ headerShown: false }} />
-                  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                </Stack>
-                <OfflineNotice />
-                <Toast />
-                <StatusBar style="light" />
-              </AppProvider>
-            </ThemeProvider>
-          </QueryClientProvider>
-        </trpc.Provider>
+        <QueryClientProvider client={queryClient}>
+          <ThemeProvider>
+            <AppProvider>
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="login" options={{ headerShown: false }} />
+                <Stack.Screen name="admin" options={{ headerShown: false }} />
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              </Stack>
+              <OfflineNotice />
+              <Toast />
+              <StatusBar style="light" />
+            </AppProvider>
+          </ThemeProvider>
+        </QueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
