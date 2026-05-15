@@ -187,3 +187,50 @@ export async function ensureNextSundayMeeting(): Promise<void> {
     await DB.setMeetings(meetings);
   }
 }
+
+
+// ─── Período (Semestre, Trimestre, Bimestre) ─────────────────────────────────
+
+export interface PeriodoOption {
+  value: string;
+  label: string;
+  range: [number, number];
+}
+
+export const PERIODOS_MAP: Record<string, PeriodoOption[]> = {
+  semestre: [
+    { value: 's1', label: '1º Semestre', range: [0, 5] },
+    { value: 's2', label: '2º Semestre', range: [6, 11] },
+  ],
+  trimestre: [
+    { value: 't1', label: '1º Trimestre', range: [0, 2] },
+    { value: 't2', label: '2º Trimestre', range: [3, 5] },
+    { value: 't3', label: '3º Trimestre', range: [6, 8] },
+    { value: 't4', label: '4º Trimestre', range: [9, 11] },
+  ],
+  bimestre: [
+    { value: 'b1', label: '1º Bimestre', range: [0, 1] },
+    { value: 'b2', label: '2º Bimestre', range: [2, 3] },
+    { value: 'b3', label: '3º Bimestre', range: [4, 5] },
+    { value: 'b4', label: '4º Bimestre', range: [6, 7] },
+    { value: 'b5', label: '5º Bimestre', range: [8, 9] },
+    { value: 'b6', label: '6º Bimestre', range: [10, 11] },
+  ],
+};
+
+export function getDateRangeFromPeriod(year: string, periodType: string, periodValue: string): [string, string] {
+  if (periodType === 'todas' || !year || year === 'todas') return ['', ''];
+  if (periodType === 'custom') return ['', ''];
+
+  const map = PERIODOS_MAP[periodType];
+  if (!map) return ['', ''];
+
+  const periodo = map.find(p => p.value === periodValue);
+  if (!periodo) return ['', ''];
+
+  const [moIni, moFim] = periodo.range;
+  const dFim = new Date(parseInt(year), moFim + 1, 0).getDate();
+  const ini = `${year}-${String(moIni + 1).padStart(2, '0')}-01`;
+  const fim = `${year}-${String(moFim + 1).padStart(2, '0')}-${String(dFim).padStart(2, '0')}`;
+  return [ini, fim];
+}

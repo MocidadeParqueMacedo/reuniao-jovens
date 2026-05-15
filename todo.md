@@ -66,3 +66,9 @@
 - [x] Stats cards no header (Total Membros, Reuniões, Média)
 - [x] Toast de feedback
 - [x] Reunião de próximo domingo automática
+
+
+## Melhorias Solicitadas
+
+- [x] Adicionar filtros de intervalo na tela Histórico (semestre, trimestre, bimestre, personalizado)
+- [x] Implementar gráficos de presença (linha e barra) com base no filtro aplicado

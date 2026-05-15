@@ -1,21 +1,15 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
-  StyleSheet, Alert, FlatList, Modal,
+  StyleSheet, Alert, Modal,
 } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import { useFocusEffect } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
 import { LoginModal } from '@/components/LoginModal';
+import { PresencaChart } from '@/components/PresencaChart';
 import { useApp } from '@/lib/app-context';
-import { formatDate, todayISO, Member, Visitor } from '@/lib/db';
-
-// ─── Types ─────────────────────────────────────────────────────────────────────
-interface FiltroAtivo {
-  dateIni: string | null;
-  dateFim: string | null;
-  memberIds: number[] | null;
-  tipoMembro: 'comum' | 'comum_visitantes' | 'visitantes';
-}
+import { formatDate, todayISO, Member, Visitor, PERIODOS_MAP, getDateRangeFromPeriod } from '@/lib/db';
 
 // ─── Presença Detail Screen ────────────────────────────────────────────────────
 function PresencaScreen({
@@ -99,144 +93,142 @@ function PresencaScreen({
   const contLabel = (m: Member) => { const o=['','1ª','2ª','3ª','4ª','5ª']; return `${o[m.continuacao]||m.continuacao} Cont.`; };
   const gLabel = (m: Member) => m.genero === 'M' ? 'Irmão' : 'Irmã';
 
+  const tipoExibir = tipoMembro === 'visitantes' ? 'Visitantes' : tipoMembro === 'comum_visitantes' ? 'Membros + Visitantes' : 'Membros';
+
   return (
-    <View style={{ flex: 1 }}>
-      <View style={pStyles.header}>
-        <TouchableOpacity style={pStyles.backBtn} onPress={onBack}>
-          <Text style={pStyles.backText}>← Voltar</Text>
+    <View style={hStyles.presencaContainer}>
+      <View style={hStyles.presencaHeader}>
+        <TouchableOpacity onPress={onBack} style={hStyles.backBtn}>
+          <Text style={hStyles.backText}>← Voltar</Text>
         </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={pStyles.title} numberOfLines={1}>{meeting.title || 'Reunião de Jovens'}</Text>
-          <Text style={pStyles.sub}>📅 {formatDate(meeting.date)}</Text>
+        <View>
+          <Text style={hStyles.presencaTitle}>Presença</Text>
+          <Text style={hStyles.presencaDate}>{formatDate(meeting.date)}</Text>
         </View>
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 30 }}>
-        {/* Tipo de membro */}
-        <View style={pStyles.card}>
-          <Text style={pStyles.label}>Exibir</Text>
-          {(['comum', 'comum_visitantes', 'visitantes'] as const).map(t => (
+        <View style={hStyles.filterRow}>
+          <TouchableOpacity
+            style={[hStyles.filterBtn, tipoMembro === 'comum' && hStyles.filterBtnActive]}
+            onPress={() => setTipoMembro('comum')}
+          >
+            <Text style={[hStyles.filterBtnText, tipoMembro === 'comum' && { color: '#fff' }]}>👥 Membros</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[hStyles.filterBtn, tipoMembro === 'comum_visitantes' && hStyles.filterBtnActive]}
+            onPress={() => setTipoMembro('comum_visitantes')}
+          >
+            <Text style={[hStyles.filterBtnText, tipoMembro === 'comum_visitantes' && { color: '#fff' }]}>👥+👤</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[hStyles.filterBtn, tipoMembro === 'visitantes' && hStyles.filterBtnActive]}
+            onPress={() => setTipoMembro('visitantes')}
+          >
+            <Text style={[hStyles.filterBtnText, tipoMembro === 'visitantes' && { color: '#fff' }]}>👤 Visitantes</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={hStyles.filterRow}>
+          <TouchableOpacity
+            style={[hStyles.filterBtn, generoFiltro === 'todos' && hStyles.filterBtnActive]}
+            onPress={() => setGeneroFiltro('todos')}
+          >
+            <Text style={[hStyles.filterBtnText, generoFiltro === 'todos' && { color: '#fff' }]}>👥 Todos</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[hStyles.filterBtn, generoFiltro === 'M' && hStyles.filterBtnActive]}
+            onPress={() => setGeneroFiltro('M')}
+          >
+            <Text style={[hStyles.filterBtnText, generoFiltro === 'M' && { color: '#fff' }]}>👨 Irmãos</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[hStyles.filterBtn, generoFiltro === 'F' && hStyles.filterBtnActive]}
+            onPress={() => setGeneroFiltro('F')}
+          >
+            <Text style={[hStyles.filterBtnText, generoFiltro === 'F' && { color: '#fff' }]}>👩 Irmãs</Text>
+          </TouchableOpacity>
+        </View>
+
+        <TextInput
+          style={hStyles.searchInput}
+          placeholder="🔍 Buscar membro..."
+          value={search}
+          onChangeText={setSearch}
+          placeholderTextColor="#94a3b8"
+        />
+
+        <View style={hStyles.card}>
+          {tipoMembro !== 'visitantes' && filteredMembers.map(m => (
             <TouchableOpacity
-              key={t}
-              style={[pStyles.selectOpt, tipoMembro === t && pStyles.selectOptActive]}
-              onPress={() => setTipoMembro(t)}
+              key={m.id}
+              style={hStyles.presencaItem}
+              onPress={() => togglePresenca(m.id)}
             >
-              <Text style={[pStyles.selectOptText, tipoMembro === t && { color: '#4f46e5', fontWeight: '700' }]}>
-                {t === 'comum' ? '👥 Comum (membros cadastrados)' : t === 'comum_visitantes' ? '👥+👤 Comum + Visitantes' : '👤 Visitantes'}
-              </Text>
+              <View style={[hStyles.avatar, { backgroundColor: avatarColor(m.nome) }]}>
+                <Text style={hStyles.avatarText}>{initials(m.nome)}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={hStyles.presencaMemberName}>{m.nome}</Text>
+                <Text style={hStyles.presencaMemberDetail}>{gLabel(m)} • {contLabel(m)}</Text>
+              </View>
+              <View style={[hStyles.checkbox, presenca[m.id] && hStyles.checkboxChecked]}>
+                {presenca[m.id] && <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800' }}>✓</Text>}
+              </View>
             </TouchableOpacity>
           ))}
 
-          {/* Filtro gênero */}
-          <View style={pStyles.genRow}>
-            {(['todos','M','F'] as const).map(g => (
-              <TouchableOpacity
-                key={g}
-                style={[pStyles.genBtn, generoFiltro === g && pStyles.genBtnActive]}
-                onPress={() => setGeneroFiltro(g)}
-              >
-                <Text style={[pStyles.genBtnText, generoFiltro === g && { color: '#fff' }]}>
-                  {g === 'todos' ? '👥 Todos' : g === 'M' ? '👨 Irmãos' : '👩 Irmãs'}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* Search */}
-          <View style={pStyles.searchWrap}>
-            <Text style={pStyles.searchIcon}>🔍</Text>
-            <TextInput
-              style={pStyles.searchInput}
-              placeholder="Buscar membro..."
-              placeholderTextColor="#94a3b8"
-              value={search}
-              onChangeText={setSearch}
-            />
-          </View>
-
-          {/* Members list */}
-          {(tipoMembro === 'comum' || tipoMembro === 'comum_visitantes') && filteredMembers.map(m => (
-            <View key={m.id} style={pStyles.presItem}>
-              <View style={[pStyles.avatar, { backgroundColor: avatarColor(m.nome) }]}>
-                <Text style={pStyles.avatarText}>{initials(m.nome)}</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={pStyles.memberName}>{m.nome}</Text>
-                <Text style={pStyles.memberSub}>{gLabel(m)} · {contLabel(m)}</Text>
-              </View>
-              <TouchableOpacity
-                style={[pStyles.toggle, presenca[m.id] && pStyles.toggleChecked]}
-                onPress={() => togglePresenca(m.id)}
-              />
-            </View>
-          ))}
-
-          {/* Visitors */}
-          {(tipoMembro === 'comum_visitantes' || tipoMembro === 'visitantes') && (
+          {(tipoMembro === 'visitantes' || tipoMembro === 'comum_visitantes') && (
             <>
-              {tipoMembro === 'comum_visitantes' && presVisitantes.length > 0 && (
-                <Text style={pStyles.sectionDivider}>— Visitantes —</Text>
-              )}
               {presVisitantes.map(v => (
-                <View key={v.id} style={pStyles.presItem}>
-                  <View style={[pStyles.avatar, { backgroundColor: '#f59e0b' }]}>
-                    <Text style={pStyles.avatarText}>👤</Text>
-                  </View>
+                <TouchableOpacity
+                  key={v.id}
+                  style={hStyles.presencaItem}
+                  onPress={() => togglePresenca(v.id)}
+                >
+                  <Text style={hStyles.visitanteIcon}>👤</Text>
                   <View style={{ flex: 1 }}>
-                    <Text style={pStyles.memberName}>Visitante, {v.comum}</Text>
-                    <Text style={pStyles.memberSub}>Visitante</Text>
-                    <View style={{ flexDirection: 'row', gap: 12, marginTop: 4 }}>
-                      <TouchableOpacity onPress={() => excluirVisitante(v.id)}>
-                        <Text style={{ color: '#ef4444', fontSize: 12, fontWeight: '700' }}>🗑 Excluir</Text>
-                      </TouchableOpacity>
-                    </View>
+                    <Text style={hStyles.presencaMemberName}>{v.comum}</Text>
+                    <Text style={hStyles.presencaMemberDetail}>Visitante</Text>
                   </View>
-                  <TouchableOpacity
-                    style={[pStyles.toggle, presenca[v.id] && pStyles.toggleChecked]}
-                    onPress={() => togglePresenca(v.id)}
-                  />
-                </View>
+                  <View style={[hStyles.checkbox, presenca[v.id] && hStyles.checkboxChecked]}>
+                    {presenca[v.id] && <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800' }}>✓</Text>}
+                  </View>
+                  <TouchableOpacity onPress={() => excluirVisitante(v.id)} style={hStyles.deleteBtn}>
+                    <Text style={{ color: '#ef4444', fontSize: 14 }}>✕</Text>
+                  </TouchableOpacity>
+                </TouchableOpacity>
               ))}
-              {tipoMembro === 'visitantes' && presVisitantes.length === 0 && (
-                <View style={pStyles.empty}>
-                  <Text style={pStyles.emptyIcon}>👤</Text>
-                  <Text style={pStyles.emptyText}>Nenhum visitante nesta reunião</Text>
+              {!showAddVisitante && (
+                <TouchableOpacity style={hStyles.addVisitanteBtn} onPress={() => setShowAddVisitante(true)}>
+                  <Text style={hStyles.addVisitanteBtnText}>➕ Adicionar Visitante</Text>
+                </TouchableOpacity>
+              )}
+              {showAddVisitante && (
+                <View style={hStyles.addVisitanteForm}>
+                  <TextInput
+                    style={hStyles.visitanteInput}
+                    placeholder="Nome da comum..."
+                    value={novaComum}
+                    onChangeText={setNovaComum}
+                    placeholderTextColor="#94a3b8"
+                  />
+                  <TouchableOpacity style={hStyles.btnSmPrimary} onPress={adicionarVisitante}>
+                    <Text style={hStyles.btnSmPrimaryText}>✅ Adicionar</Text>
+                  </TouchableOpacity>
                 </View>
               )}
             </>
           )}
+        </View>
 
-          {/* Add visitante */}
-          <TouchableOpacity
-            style={pStyles.addVisBtn}
-            onPress={() => setShowAddVisitante(v => !v)}
-          >
-            <Text style={pStyles.addVisBtnText}>➕ Adicionar Visitante</Text>
+        <View style={hStyles.buttonRow}>
+          <TouchableOpacity style={hStyles.btnPrimary} onPress={salvar}>
+            <Text style={hStyles.btnPrimaryText}>💾 Salvar Presença</Text>
           </TouchableOpacity>
-          {showAddVisitante && (
-            <View style={pStyles.addVisForm}>
-              <Text style={pStyles.addVisLabel}>Qual a comum?</Text>
-              <TextInput
-                style={pStyles.addVisInput}
-                placeholder="Nome da comum..."
-                placeholderTextColor="#94a3b8"
-                value={novaComum}
-                onChangeText={setNovaComum}
-              />
-              <TouchableOpacity style={pStyles.btnPrimary} onPress={adicionarVisitante}>
-                <Text style={pStyles.btnPrimaryText}>✅ Adicionar Visitante</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          <View style={pStyles.actionRow}>
-            <TouchableOpacity style={pStyles.btnPrimary} onPress={salvar}>
-              <Text style={pStyles.btnPrimaryText}>💾 Salvar Presença</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={pStyles.btnSecondary} onPress={limpar}>
-              <Text style={pStyles.btnSecondaryText}>🗑 Limpar</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity style={hStyles.btnSecondary} onPress={limpar}>
+            <Text style={hStyles.btnSecondaryText}>🗑 Limpar</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </View>
@@ -245,75 +237,52 @@ function PresencaScreen({
 
 // ─── Main Histórico Screen ─────────────────────────────────────────────────────
 export default function HistoricoScreen() {
-  const { meetings, members, visitors, saveMeetings, autenticado, showToast } = useApp();
+  const { meetings, members, autenticado, showToast } = useApp();
   const [showLogin, setShowLogin] = useState(false);
-  const [currentMeetingId, setCurrentMeetingId] = useState<string | null>(null);
-  const [filtroAno, setFiltroAno] = useState('todas');
-  const [filtroGrupo, setFiltroGrupo] = useState('todos');
-  const [filtroTipoMembro, setFiltroTipoMembro] = useState<'comum' | 'comum_visitantes' | 'visitantes'>('comum');
-  const [filtroAtivo, setFiltroAtivo] = useState<FiltroAtivo>({
-    dateIni: null, dateFim: null, memberIds: null, tipoMembro: 'comum',
-  });
+  const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
+
+  // Filtros
+  const [ano, setAno] = useState<string>(String(new Date().getFullYear()));
+  const [tipoIntervalo, setTipoIntervalo] = useState<'todas' | 'semestre' | 'trimestre' | 'bimestre' | 'custom'>('todas');
+  const [periodoSelecionado, setPeriodoSelecionado] = useState<string>('');
+  const [dataIni, setDataIni] = useState<string>('');
+  const [dataFim, setDataFim] = useState<string>('');
+  const [chartType, setChartType] = useState<'line' | 'bar'>('line');
+  const [showChart, setShowChart] = useState(false);
 
   useFocusEffect(useCallback(() => {
-    if (!autenticado) {
-      setShowLogin(true);
-    }
+    if (!autenticado) setShowLogin(true);
   }, [autenticado]));
 
-  const today = todayISO();
-  const anos = Array.from(new Set(meetings.map(m => m.date.split('-')[0]))).sort((a, b) => b.localeCompare(a));
+  // Gerar lista de anos disponíveis
+  const yearsAvailable = Array.from({ length: 10 }, (_, i) => {
+    const y = new Date().getFullYear() - i;
+    return String(y);
+  });
 
-  function getMemberIdsByGrupo() {
-    if (filtroGrupo === 'todos') return members.map(m => m.id);
-    if (filtroGrupo === 'irmaos') return members.filter(m => m.genero === 'M').map(m => m.id);
-    if (filtroGrupo === 'irmas') return members.filter(m => m.genero === 'F').map(m => m.id);
-    if (filtroGrupo === 'criancas') return members.filter(m => m.continuacao <= 2).map(m => m.id);
-    if (filtroGrupo === 'mocidade') return members.filter(m => (m.genero === 'F' && m.continuacao >= 3) || (m.genero === 'M' && m.continuacao === 3)).map(m => m.id);
-    return members.map(m => m.id);
-  }
+  // Obter opções de período baseado no tipo
+  const periodosDisponiveis = (tipoIntervalo === 'semestre' || tipoIntervalo === 'trimestre' || tipoIntervalo === 'bimestre')
+    ? PERIODOS_MAP[tipoIntervalo] || []
+    : [];
 
-  function aplicarFiltro() {
-    const memberIds = getMemberIdsByGrupo();
-    let dateIni: string | null = null, dateFim: string | null = null;
-    if (filtroAno !== 'todas') { dateIni = `${filtroAno}-01-01`; dateFim = `${filtroAno}-12-31`; }
-    setFiltroAtivo({ dateIni, dateFim, memberIds, tipoMembro: filtroTipoMembro });
-  }
-
-  let filteredMeetings = [...meetings].sort((a, b) => b.date.localeCompare(a.date));
-  if (filtroAtivo.dateIni) filteredMeetings = filteredMeetings.filter(m => m.date >= filtroAtivo.dateIni!);
-  if (filtroAtivo.dateFim) filteredMeetings = filteredMeetings.filter(m => m.date <= filtroAtivo.dateFim!);
-
-  function countPresentes(mt: any) {
-    const mid = String(mt.id || mt.date);
-    const presentAll = mt.present || [];
-    const meetingVisitors = visitors[mid] || [];
-    let count = 0;
-    const tm = filtroAtivo.tipoMembro;
-    if (tm === 'comum' || tm === 'comum_visitantes') {
-      const ids = filtroAtivo.memberIds;
-      count += ids ? presentAll.filter((id: number) => ids.includes(id)).length : presentAll.length;
+  // Calcular intervalo de datas
+  function getDateRange(): [string, string] {
+    if (tipoIntervalo === 'todas') return ['', ''];
+    if (tipoIntervalo === 'custom') return [dataIni, dataFim];
+    if (!ano || ano === 'todas') return ['', ''];
+    if (tipoIntervalo === 'semestre' || tipoIntervalo === 'trimestre' || tipoIntervalo === 'bimestre') {
+      const [ini, fim] = getDateRangeFromPeriod(ano, tipoIntervalo, periodoSelecionado);
+      return [ini, fim];
     }
-    if (tm === 'comum_visitantes' || tm === 'visitantes') count += meetingVisitors.length;
-    return count;
+    return ['', ''];
   }
 
-  async function deletarReuniao(meetingId: string) {
-    Alert.alert('Excluir Reunião', 'Deseja excluir esta reunião?', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Excluir', style: 'destructive',
-        onPress: async () => {
-          await saveMeetings(meetings.filter(m => String(m.id || m.date) !== String(meetingId)));
-          showToast('🗑 Reunião removida');
-        },
-      },
-    ]);
-  }
+  const [dateIni, dateFim] = getDateRange();
 
-  function abrirPresenca(meetingId: string) {
-    setCurrentMeetingId(meetingId);
-  }
+  // Filtrar reuniões
+  let filteredMeetings = [...meetings].sort((a, b) => b.date.localeCompare(a.date));
+  if (dateIni) filteredMeetings = filteredMeetings.filter(m => m.date >= dateIni);
+  if (dateFim) filteredMeetings = filteredMeetings.filter(m => m.date <= dateFim);
 
   if (!autenticado) {
     return (
@@ -330,130 +299,177 @@ export default function HistoricoScreen() {
     );
   }
 
-  if (currentMeetingId) {
+  if (selectedMeetingId) {
     return (
       <ScreenContainer containerClassName="bg-background" edges={['top','left','right']}>
-        <PresencaScreen meetingId={currentMeetingId} onBack={() => setCurrentMeetingId(null)} />
+        <PresencaScreen meetingId={selectedMeetingId} onBack={() => setSelectedMeetingId(null)} />
       </ScreenContainer>
     );
   }
 
   return (
     <ScreenContainer containerClassName="bg-background" edges={['top','left','right']}>
-      <View style={hStyles.header}>
-        <Text style={hStyles.headerTitle}>🕐 Histórico</Text>
-      </View>
+      <View style={hStyles.header}><Text style={hStyles.headerTitle}>📅 Histórico</Text></View>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 30 }}>
-        {/* Filtros */}
+        {/* Filtros Card */}
         <View style={hStyles.card}>
           <Text style={hStyles.cardTitle}>🔍 Filtros</Text>
-          <Text style={hStyles.label}>Ano</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
-            {['todas', ...anos].map(a => (
+
+          {/* Ano */}
+          <Text style={hStyles.label}>📅 Ano</Text>
+          <View style={hStyles.pickerContainer}>
+            <Picker
+              selectedValue={ano}
+              onValueChange={setAno}
+              style={hStyles.picker}
+            >
+              {yearsAvailable.map(y => (
+                <Picker.Item key={y} label={y} value={y} />
+              ))}
+            </Picker>
+          </View>
+
+          {/* Tipo de Intervalo */}
+          <Text style={hStyles.label}>⏱️ Intervalo</Text>
+          <View style={hStyles.filterRow}>
+            {['todas', 'semestre', 'trimestre', 'bimestre', 'custom'].map(tipo => (
               <TouchableOpacity
-                key={a}
-                style={[hStyles.filterChip, filtroAno === a && hStyles.filterChipActive]}
-                onPress={() => setFiltroAno(a)}
+                key={tipo}
+                style={[hStyles.filterBtn, tipoIntervalo === tipo && hStyles.filterBtnActive]}
+                onPress={() => { setTipoIntervalo(tipo as any); setPeriodoSelecionado(''); }}
               >
-                <Text style={[hStyles.filterChipText, filtroAno === a && { color: '#fff' }]}>
-                  {a === 'todas' ? 'Todos' : a}
+                <Text style={[hStyles.filterBtnText, tipoIntervalo === tipo && { color: '#fff' }]}>
+                  {tipo === 'todas' ? 'Todas' : tipo === 'custom' ? 'Custom' : tipo.charAt(0).toUpperCase() + tipo.slice(1)}
                 </Text>
               </TouchableOpacity>
             ))}
-          </ScrollView>
+          </View>
 
-          <Text style={hStyles.label}>Grupo</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
-            {[
-              { v: 'todos', l: '👥 Todos' },
-              { v: 'irmaos', l: '👨 Irmãos' },
-              { v: 'irmas', l: '👩 Irmãs' },
-              { v: 'criancas', l: '👧🧒 Crianças' },
-              { v: 'mocidade', l: '🧑‍🤝‍🧑 Mocidade' },
-            ].map(({ v, l }) => (
-              <TouchableOpacity
-                key={v}
-                style={[hStyles.filterChip, filtroGrupo === v && hStyles.filterChipActive]}
-                onPress={() => setFiltroGrupo(v)}
-              >
-                <Text style={[hStyles.filterChipText, filtroGrupo === v && { color: '#fff' }]}>{l}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          {/* Período (se semestre/trimestre/bimestre) */}
+          {periodosDisponiveis.length > 0 && (
+            <>
+              <Text style={hStyles.label}>{tipoIntervalo.charAt(0).toUpperCase() + tipoIntervalo.slice(1)}</Text>
+              <View style={hStyles.pickerContainer}>
+                <Picker
+                  selectedValue={periodoSelecionado}
+                  onValueChange={setPeriodoSelecionado}
+                  style={hStyles.picker}
+                >
+                  <Picker.Item label={`Selecionar ${tipoIntervalo}...`} value="" />
+                  {periodosDisponiveis.map(p => (
+                    <Picker.Item key={p.value} label={p.label} value={p.value} />
+                  ))}
+                </Picker>
+              </View>
+            </>
+          )}
 
-          <Text style={hStyles.label}>Tipo de Membro</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-            {[
-              { v: 'comum' as const, l: '👥 Comum' },
-              { v: 'comum_visitantes' as const, l: '👥+👤 Comum + Visitantes' },
-              { v: 'visitantes' as const, l: '👤 Visitantes' },
-            ].map(({ v, l }) => (
-              <TouchableOpacity
-                key={v}
-                style={[hStyles.filterChip, filtroTipoMembro === v && hStyles.filterChipActive]}
-                onPress={() => setFiltroTipoMembro(v)}
-              >
-                <Text style={[hStyles.filterChipText, filtroTipoMembro === v && { color: '#fff' }]}>{l}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          {/* Datas personalizadas (se custom) */}
+          {tipoIntervalo === 'custom' && (
+            <>
+              <Text style={hStyles.label}>📅 De</Text>
+              <TextInput
+                style={hStyles.input}
+                placeholder="YYYY-MM-DD"
+                value={dataIni}
+                onChangeText={setDataIni}
+                placeholderTextColor="#94a3b8"
+              />
+              <Text style={hStyles.label}>📅 Até</Text>
+              <TextInput
+                style={hStyles.input}
+                placeholder="YYYY-MM-DD"
+                value={dataFim}
+                onChangeText={setDataFim}
+                placeholderTextColor="#94a3b8"
+              />
+            </>
+          )}
 
-          <TouchableOpacity style={hStyles.btnPrimary} onPress={aplicarFiltro}>
-            <Text style={hStyles.btnPrimaryText}>✅ Aplicar Filtro</Text>
-          </TouchableOpacity>
+          {/* Botões de Ação */}
+          <View style={hStyles.filterRow}>
+            <TouchableOpacity style={[hStyles.btnSmPrimary, { flex: 1 }]} onPress={() => setShowChart(true)}>
+              <Text style={hStyles.btnSmPrimaryText}>📊 Gráfico</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        {/* Lista de reuniões */}
+        {/* Lista de Reuniões */}
         <View style={hStyles.card}>
-          <View style={hStyles.cardHeaderRow}>
-            <Text style={hStyles.cardTitle}>📅 Reuniões</Text>
-            <Text style={hStyles.resumoText}>{filteredMeetings.length} reunião(ões)</Text>
-          </View>
+          <Text style={hStyles.cardTitle}>📅 Reuniões ({filteredMeetings.length})</Text>
           {filteredMeetings.length === 0 ? (
             <View style={hStyles.empty}>
-              <Text style={hStyles.emptyIcon}>📅</Text>
-              <Text style={hStyles.emptyText}>Nenhuma reunião nesse período</Text>
+              <Text style={hStyles.emptyText}>Nenhuma reunião no período</Text>
             </View>
           ) : (
-            filteredMeetings.map(mt => {
-              const mid = String(mt.id || mt.date);
-              const isFuture = mt.date > today, isToday = mt.date === today;
-              const count = countPresentes(mt);
-              const countText = isFuture
-                ? (count > 0 ? `👥 ${count} presentes` : '⏳ Aguardando presença')
-                : `👥 ${count} presentes`;
+            filteredMeetings.map(m => {
+              const today = todayISO();
+              const isToday = m.date === today;
+              const isProxima = m.date > today;
+              const presentes = m.present?.length || 0;
               return (
-                <TouchableOpacity key={mid} style={hStyles.histItem} onPress={() => abrirPresenca(mid)}>
+                <TouchableOpacity
+                  key={String(m.id || m.date)}
+                  style={hStyles.meetingItem}
+                  onPress={() => setSelectedMeetingId(String(m.id || m.date))}
+                >
                   <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <Text style={hStyles.histDate}>⛪ {mt.title || 'Reunião de Jovens'}</Text>
-                      {isFuture && <View style={hStyles.tagProxima}><Text style={hStyles.tagProximaText}>Próxima</Text></View>}
-                      {isToday && <View style={hStyles.tagHoje}><Text style={hStyles.tagHojeText}>Hoje</Text></View>}
-                    </View>
-                    <Text style={hStyles.histSub}>📅 {formatDate(mt.date)}</Text>
-                    <Text style={hStyles.histCount}>{countText}</Text>
+                    <Text style={hStyles.meetingDate}>{formatDate(m.date)}</Text>
+                    <Text style={hStyles.meetingCount}>👥 {presentes} presentes</Text>
+                    {isToday && <Text style={hStyles.tag}>🔔 Hoje</Text>}
+                    {isProxima && !isToday && <Text style={[hStyles.tag, { backgroundColor: '#fef3c7', color: '#d97706' }]}>📅 Próxima</Text>}
                   </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <TouchableOpacity
-                      onPress={(e) => { e.stopPropagation(); deletarReuniao(mid); }}
-                      style={hStyles.delBtn}
-                    >
-                      <Text style={{ color: '#ef4444', fontSize: 16 }}>🗑</Text>
-                    </TouchableOpacity>
-                    <Text style={hStyles.arrow}>›</Text>
-                  </View>
+                  <Text style={hStyles.arrow}>›</Text>
                 </TouchableOpacity>
               );
             })
           )}
         </View>
       </ScrollView>
+
+      {/* Modal de Gráfico */}
+      <Modal visible={showChart} transparent animationType="slide">
+        <View style={hStyles.modalOverlay}>
+          <View style={hStyles.modalBox}>
+            <View style={hStyles.modalHeader}>
+              <Text style={hStyles.modalTitle}>📊 Gráfico de Presença</Text>
+              <TouchableOpacity onPress={() => setShowChart(false)}>
+                <Text style={hStyles.closeBtn}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={{ flex: 1 }}>
+              <View style={{ padding: 16 }}>
+                <View style={hStyles.filterRow}>
+                  <TouchableOpacity
+                    style={[hStyles.filterBtn, chartType === 'line' && hStyles.filterBtnActive]}
+                    onPress={() => setChartType('line')}
+                  >
+                    <Text style={[hStyles.filterBtnText, chartType === 'line' && { color: '#fff' }]}>📈 Linha</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[hStyles.filterBtn, chartType === 'bar' && hStyles.filterBtnActive]}
+                    onPress={() => setChartType('bar')}
+                  >
+                    <Text style={[hStyles.filterBtnText, chartType === 'bar' && { color: '#fff' }]}>📊 Barra</Text>
+                  </TouchableOpacity>
+                </View>
+                <PresencaChart
+                  meetings={filteredMeetings}
+                  members={members}
+                  chartType={chartType}
+                  title={`Presença no Período`}
+                />
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
       <LoginModal visible={showLogin} onSuccess={() => setShowLogin(false)} onCancel={() => setShowLogin(false)} />
     </ScreenContainer>
   );
 }
 
-// ─── Styles ────────────────────────────────────────────────────────────────────
 const hStyles = StyleSheet.create({
   header: { backgroundColor: '#3730a3', padding: 16, paddingTop: 12 },
   headerTitle: { color: '#fff', fontSize: 18, fontWeight: '800', textAlign: 'center' },
@@ -461,83 +477,59 @@ const hStyles = StyleSheet.create({
     backgroundColor: '#fff', borderRadius: 14, padding: 16, marginBottom: 12,
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 20, elevation: 4,
   },
-  cardTitle: { fontSize: 14, fontWeight: '700', color: '#4f46e5', marginBottom: 10 },
-  cardHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  label: { fontSize: 12, fontWeight: '600', color: '#64748b', marginBottom: 6 },
-  filterChip: {
-    backgroundColor: '#f1f5f9', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7,
-    marginRight: 8, borderWidth: 1.5, borderColor: '#e2e8f0',
-  },
-  filterChipActive: { backgroundColor: '#4f46e5', borderColor: '#4f46e5' },
-  filterChipText: { fontSize: 13, fontWeight: '600', color: '#1e293b' },
-  resumoText: { fontSize: 11, color: '#64748b' },
-  histItem: {
-    backgroundColor: '#f1f5f9', borderRadius: 10, padding: 14, marginBottom: 8,
-    flexDirection: 'row', alignItems: 'center',
-  },
-  histDate: { fontWeight: '700', fontSize: 14 },
-  histSub: { fontSize: 13, color: '#64748b', marginTop: 2 },
-  histCount: { fontSize: 13, color: '#64748b', marginTop: 2 },
-  tagProxima: { backgroundColor: '#fef3c7', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
-  tagProximaText: { fontSize: 11, color: '#d97706', fontWeight: '700' },
-  tagHoje: { backgroundColor: '#eef2ff', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
-  tagHojeText: { fontSize: 11, color: '#4f46e5', fontWeight: '700' },
-  arrow: { fontSize: 18, color: '#818cf8' },
-  delBtn: { padding: 4 },
-  empty: { alignItems: 'center', paddingVertical: 32 },
-  emptyIcon: { fontSize: 40, marginBottom: 8 },
-  emptyText: { fontSize: 14, color: '#64748b' },
-  btnPrimary: { backgroundColor: '#4f46e5', borderRadius: 10, padding: 12, alignItems: 'center' },
+  cardTitle: { fontSize: 14, fontWeight: '700', color: '#4f46e5', marginBottom: 12 },
+  label: { fontSize: 12, fontWeight: '600', color: '#64748b', marginBottom: 6, marginTop: 10 },
+  pickerContainer: { borderWidth: 1.5, borderColor: '#e2e8f0', borderRadius: 9, backgroundColor: '#f1f5f9', marginBottom: 10, overflow: 'hidden' },
+  picker: { color: '#1e293b' },
+  input: { borderWidth: 1.5, borderColor: '#e2e8f0', borderRadius: 9, padding: 10, fontSize: 14, backgroundColor: '#f1f5f9', color: '#1e293b', marginBottom: 10 },
+  filterRow: { flexDirection: 'row', gap: 8, marginBottom: 10, flexWrap: 'wrap' },
+  filterBtn: { flex: 1, minWidth: '30%', borderWidth: 1.5, borderColor: '#e2e8f0', borderRadius: 9, padding: 10, alignItems: 'center', backgroundColor: '#f8fafc' },
+  filterBtnActive: { backgroundColor: '#4f46e5', borderColor: '#4f46e5' },
+  filterBtnText: { fontSize: 12, fontWeight: '600', color: '#1e293b' },
+  btnSmPrimary: { backgroundColor: '#4f46e5', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, alignItems: 'center' },
+  btnSmPrimaryText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  btnPrimary: { backgroundColor: '#4f46e5', borderRadius: 10, padding: 13, alignItems: 'center', flex: 1 },
   btnPrimaryText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  btnSecondary: { backgroundColor: '#f1f5f9', borderRadius: 10, padding: 13, alignItems: 'center', flex: 1, borderWidth: 1.5, borderColor: '#e2e8f0' },
+  btnSecondaryText: { color: '#4f46e5', fontWeight: '700', fontSize: 14 },
+  buttonRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  meetingItem: {
+    flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#e2e8f0',
+  },
+  meetingDate: { fontWeight: '700', fontSize: 14 },
+  meetingCount: { fontSize: 12, color: '#64748b', marginTop: 2 },
+  tag: { fontSize: 10, backgroundColor: '#eef2ff', color: '#4f46e5', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2, marginTop: 4, fontWeight: '700', alignSelf: 'flex-start' },
+  arrow: { color: '#818cf8', fontSize: 18 },
+  empty: { alignItems: 'center', paddingVertical: 32 },
+  emptyText: { fontSize: 14, color: '#64748b' },
+  presencaContainer: { flex: 1 },
+  presencaHeader: { backgroundColor: '#3730a3', padding: 16, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  presencaTitle: { color: '#fff', fontWeight: '800', fontSize: 15 },
+  presencaDate: { color: '#cbd5e1', fontSize: 12, marginTop: 2 },
+  backBtn: { backgroundColor: '#f1f5f9', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
+  backText: { color: '#4f46e5', fontWeight: '700', fontSize: 13 },
+  presencaItem: {
+    flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#e2e8f0', gap: 10,
+  },
+  avatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: '#fff', fontWeight: '800', fontSize: 14 },
+  visitanteIcon: { fontSize: 24, marginRight: 4 },
+  presencaMemberName: { fontWeight: '700', fontSize: 14 },
+  presencaMemberDetail: { fontSize: 12, color: '#64748b', marginTop: 2 },
+  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: '#e2e8f0', alignItems: 'center', justifyContent: 'center' },
+  checkboxChecked: { backgroundColor: '#4f46e5', borderColor: '#4f46e5' },
+  deleteBtn: { padding: 4 },
+  addVisitanteBtn: { marginTop: 10, borderWidth: 1.5, borderColor: '#818cf8', borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
+  addVisitanteBtnText: { color: '#4f46e5', fontWeight: '700', fontSize: 13 },
+  addVisitanteForm: { marginTop: 10, backgroundColor: '#f1f5f9', borderRadius: 10, padding: 12, borderWidth: 1.5, borderColor: '#e2e8f0', gap: 8 },
+  visitanteInput: { borderWidth: 1.5, borderColor: '#e2e8f0', borderRadius: 8, padding: 10, fontSize: 14, backgroundColor: '#fff', color: '#1e293b' },
+  searchInput: { borderWidth: 1.5, borderColor: '#e2e8f0', borderRadius: 9, padding: 10, fontSize: 14, backgroundColor: '#f1f5f9', color: '#1e293b', marginBottom: 10 },
   lockedContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
   lockedIcon: { fontSize: 60, marginBottom: 16 },
   lockedText: { fontSize: 16, color: '#64748b', marginBottom: 24, textAlign: 'center' },
-});
-
-const pStyles = StyleSheet.create({
-  header: {
-    backgroundColor: '#3730a3', padding: 16, flexDirection: 'row', alignItems: 'center', gap: 10,
-  },
-  backBtn: { backgroundColor: '#f1f5f9', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 6 },
-  backText: { color: '#4f46e5', fontWeight: '700', fontSize: 13 },
-  title: { color: '#fff', fontWeight: '800', fontSize: 15 },
-  sub: { color: '#c7d2fe', fontSize: 12, marginTop: 2 },
-  card: {
-    backgroundColor: '#fff', borderRadius: 14, padding: 16,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 20, elevation: 4,
-  },
-  label: { fontSize: 12, fontWeight: '600', color: '#64748b', marginBottom: 4 },
-  selectOpt: {
-    padding: 10, borderRadius: 9, borderWidth: 1.5, borderColor: '#e2e8f0', marginBottom: 6, backgroundColor: '#f8fafc',
-  },
-  selectOptActive: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
-  selectOptText: { fontSize: 14, color: '#1e293b' },
-  genRow: { flexDirection: 'row', gap: 8, marginVertical: 12 },
-  genBtn: { flex: 1, padding: 8, borderRadius: 8, borderWidth: 1.5, borderColor: '#e2e8f0', alignItems: 'center', backgroundColor: '#f8fafc' },
-  genBtnActive: { backgroundColor: '#4f46e5', borderColor: '#4f46e5' },
-  genBtnText: { fontSize: 12, fontWeight: '600', color: '#1e293b' },
-  searchWrap: { flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderColor: '#e2e8f0', borderRadius: 9, backgroundColor: '#f1f5f9', marginBottom: 12 },
-  searchIcon: { paddingLeft: 10, fontSize: 16 },
-  searchInput: { flex: 1, padding: 10, fontSize: 14, color: '#1e293b' },
-  presItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#e2e8f0', gap: 12 },
-  avatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  memberName: { fontWeight: '700', fontSize: 14 },
-  memberSub: { fontSize: 12, color: '#64748b', marginTop: 2 },
-  toggle: { width: 44, height: 24, backgroundColor: '#e2e8f0', borderRadius: 12 },
-  toggleChecked: { backgroundColor: '#22c55e' },
-  sectionDivider: { fontSize: 12, fontWeight: '700', color: '#64748b', paddingVertical: 8, textAlign: 'center' },
-  addVisBtn: { marginTop: 12, borderWidth: 1.5, borderColor: '#818cf8', borderRadius: 10, padding: 10, alignItems: 'center', backgroundColor: '#f8fafc' },
-  addVisBtnText: { color: '#4f46e5', fontWeight: '700', fontSize: 13 },
-  addVisForm: { backgroundColor: '#f1f5f9', borderRadius: 10, padding: 12, marginTop: 8, borderWidth: 1.5, borderColor: '#e2e8f0' },
-  addVisLabel: { fontSize: 12, fontWeight: '600', color: '#64748b', marginBottom: 4 },
-  addVisInput: { borderWidth: 1.5, borderColor: '#e2e8f0', borderRadius: 9, padding: 9, fontSize: 14, backgroundColor: '#fff', color: '#1e293b', marginBottom: 8 },
-  actionRow: { flexDirection: 'row', gap: 8, marginTop: 14 },
-  btnPrimary: { flex: 1, backgroundColor: '#4f46e5', borderRadius: 10, padding: 12, alignItems: 'center' },
-  btnPrimaryText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  btnSecondary: { flex: 1, backgroundColor: '#f1f5f9', borderRadius: 10, padding: 12, alignItems: 'center', borderWidth: 1.5, borderColor: '#818cf8' },
-  btnSecondaryText: { color: '#4f46e5', fontWeight: '700', fontSize: 14 },
-  empty: { alignItems: 'center', paddingVertical: 24 },
-  emptyIcon: { fontSize: 36, marginBottom: 8 },
-  emptyText: { fontSize: 14, color: '#64748b' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalBox: { backgroundColor: '#fff', borderRadius: 20, padding: 24, maxHeight: '92%' },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+  modalTitle: { fontSize: 18, fontWeight: '800', color: '#4f46e5' },
+  closeBtn: { fontSize: 22, color: '#64748b' },
 });
