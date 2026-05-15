@@ -6,12 +6,20 @@ import { useApp } from '@/lib/app-context';
 import { loadCurrentUser, saveCurrentUser } from '@/lib/auth-persistence';
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    padding: 16,
+  },
   logoutButton: {
     backgroundColor: '#ef4444',
     borderRadius: 8,
     paddingVertical: 16,
     alignItems: 'center',
-    marginTop: 32,
+    marginHorizontal: 16,
+    marginBottom: 16,
   },
   logoutButtonText: {
     color: 'white',
@@ -36,6 +44,7 @@ export default function PerfilScreen() {
   }, [autenticado]);
 
   const handleLogout = () => {
+    console.log('🚪 handleLogout chamado');
     Alert.alert(
       'Fazer Logout',
       'Tem certeza que deseja sair da aplicação?',
@@ -78,8 +87,8 @@ export default function PerfilScreen() {
   }
 
   return (
-    <ScreenContainer className="flex-1 p-4">
-      <ScrollView>
+    <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
         <View className="mb-8">
           <Text className="text-3xl font-bold text-foreground mb-2">Meu Perfil</Text>
           <Text className="text-muted">Gerencie suas configurações</Text>
@@ -119,20 +128,20 @@ export default function PerfilScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Logout Button - USANDO STYLE */}
-        <TouchableOpacity
-          onPress={handleLogout}
-          style={styles.logoutButton}
-        >
-          <Text style={styles.logoutButtonText}>🚪 Fazer Logout</Text>
-        </TouchableOpacity>
-
         {/* Footer */}
         <View className="mt-8 pt-6 border-t border-border items-center">
           <Text className="text-muted text-xs">Reunião de Jovens v1.0.0</Text>
           <Text className="text-muted text-xs mt-1">© 2026 Todos os direitos reservados</Text>
         </View>
       </ScrollView>
-    </ScreenContainer>
+
+      {/* Logout Button - FORA DO SCROLLVIEW */}
+      <TouchableOpacity
+        onPress={handleLogout}
+        style={styles.logoutButton}
+      >
+        <Text style={styles.logoutButtonText}>🚪 Fazer Logout</Text>
+      </TouchableOpacity>
+    </View>
   );
 }
