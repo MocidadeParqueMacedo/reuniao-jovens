@@ -83,3 +83,10 @@
 ## Correções Adicionais
 
 - [x] Corrigir lógica de filtros: remover subgrupo dinâmico e aplicar continuações corretas por grupo
+
+
+## Alterações na Tela de Presença
+
+- [x] Adicionar sub-filtros de continuação na tela de Presença (Irmãos: 1ª/2ª/3ª, Irmãs: 1ª/2ª/3ª/4ª/5ª)
+- [x] Implementar função de Adicionar Visitante conforme código original
+- [x] Implementar lançamento automático de próxima reunião na aba Histórico

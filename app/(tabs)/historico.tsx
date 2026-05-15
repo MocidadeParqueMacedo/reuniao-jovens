@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   StyleSheet, Alert, Modal,
@@ -10,6 +10,18 @@ import { LoginModal } from '@/components/LoginModal';
 import { PresencaChart } from '@/components/PresencaChart';
 import { useApp } from '@/lib/app-context';
 import { formatDate, todayISO, Member, Visitor, PERIODOS_MAP, getDateRangeFromPeriod } from '@/lib/db';
+
+// ─── Função para obter próximo domingo ───────────────────────────────────────
+function getNextSundayDate(): string {
+  const today = new Date();
+  const dow = today.getDay(); // 0=Dom, 1=Seg, ..., 6=Sáb
+  const daysToAdd = dow === 0 ? 0 : 7 - dow;
+  const sunday = new Date(today.getFullYear(), today.getMonth(), today.getDate() + daysToAdd);
+  const y = sunday.getFullYear();
+  const m = String(sunday.getMonth() + 1).padStart(2, '0');
+  const d = String(sunday.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
 
 // ─── Presença Detail Screen ────────────────────────────────────────────────────
 function PresencaScreen({
@@ -25,6 +37,7 @@ function PresencaScreen({
   const [presVisitantes, setPresVisitantes] = useState<Visitor[]>([]);
   const [tipoMembro, setTipoMembro] = useState<'comum' | 'comum_visitantes' | 'visitantes'>('comum');
   const [generoFiltro, setGeneroFiltro] = useState<'todos' | 'M' | 'F'>('todos');
+  const [continuacaoFiltro, setContinuacaoFiltro] = useState<string>('todas');
   const [search, setSearch] = useState('');
   const [showAddVisitante, setShowAddVisitante] = useState(false);
   const [novaComum, setNovaComum] = useState('');
@@ -65,22 +78,37 @@ function PresencaScreen({
   function limpar() { setPresenca({}); }
 
   function adicionarVisitante() {
-    if (!novaComum.trim()) return;
+    if (!novaComum.trim()) {
+      showToast('Informe a comum!');
+      return;
+    }
     const id = `v_${Date.now()}`;
     const novo: Visitor = { id, comum: novaComum.trim() };
     setPresVisitantes(prev => [...prev, novo]);
     setPresenca(prev => ({ ...prev, [id]: true }));
     setNovaComum('');
     setShowAddVisitante(false);
+    showToast('✅ Visitante adicionado!');
   }
 
   function excluirVisitante(id: string) {
     setPresVisitantes(prev => prev.filter(v => v.id !== id));
     setPresenca(prev => { const n = { ...prev }; delete n[id]; return n; });
+    showToast('🗑 Visitante removido');
+  }
+
+  // Obter continuações disponíveis por gênero
+  function getContsByGenero(genero: 'M' | 'F'): number[] {
+    if (genero === 'M') return [1, 2, 3]; // Irmãos: 1ª, 2ª, 3ª
+    return [1, 2, 3, 4, 5]; // Irmãs: 1ª, 2ª, 3ª, 4ª, 5ª
   }
 
   let filteredMembers = members;
   if (generoFiltro !== 'todos') filteredMembers = filteredMembers.filter(m => m.genero === generoFiltro);
+  if (generoFiltro !== 'todos' && continuacaoFiltro !== 'todas') {
+    const cont = parseInt(continuacaoFiltro);
+    filteredMembers = filteredMembers.filter(m => m.continuacao === cont);
+  }
   if (search) filteredMembers = filteredMembers.filter(m => m.nome.toLowerCase().includes(search.toLowerCase()));
 
   const avatarColor = (nome: string) => {
@@ -92,6 +120,8 @@ function PresencaScreen({
   const initials = (nome: string) => nome.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
   const contLabel = (m: Member) => { const o=['','1ª','2ª','3ª','4ª','5ª']; return `${o[m.continuacao]||m.continuacao} Cont.`; };
   const gLabel = (m: Member) => m.genero === 'M' ? 'Irmão' : 'Irmã';
+
+  const contDisponíveis = generoFiltro !== 'todos' ? getContsByGenero(generoFiltro as 'M' | 'F') : [];
 
   return (
     <View style={hStyles.presencaContainer}>
@@ -126,23 +156,75 @@ function PresencaScreen({
         <View style={hStyles.filterRow}>
           <TouchableOpacity
             style={[hStyles.filterBtn, generoFiltro === 'todos' && hStyles.filterBtnActive]}
-            onPress={() => setGeneroFiltro('todos')}
+            onPress={() => { setGeneroFiltro('todos'); setContinuacaoFiltro('todas'); }}
           >
             <Text style={[hStyles.filterBtnText, generoFiltro === 'todos' && { color: '#fff' }]}>👥 Todos</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[hStyles.filterBtn, generoFiltro === 'M' && hStyles.filterBtnActive]}
-            onPress={() => setGeneroFiltro('M')}
+            onPress={() => { setGeneroFiltro('M'); setContinuacaoFiltro('todas'); }}
           >
             <Text style={[hStyles.filterBtnText, generoFiltro === 'M' && { color: '#fff' }]}>👨 Irmãos</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[hStyles.filterBtn, generoFiltro === 'F' && hStyles.filterBtnActive]}
-            onPress={() => setGeneroFiltro('F')}
+            onPress={() => { setGeneroFiltro('F'); setContinuacaoFiltro('todas'); }}
           >
             <Text style={[hStyles.filterBtnText, generoFiltro === 'F' && { color: '#fff' }]}>👩 Irmãs</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Sub-filtro de Continuação (aparece quando Irmãos ou Irmãs selecionado) */}
+        {generoFiltro !== 'todos' && (
+          <View style={hStyles.filterRow}>
+            <TouchableOpacity
+              style={[hStyles.filterBtn, continuacaoFiltro === 'todas' && hStyles.filterBtnActive]}
+              onPress={() => setContinuacaoFiltro('todas')}
+            >
+              <Text style={[hStyles.filterBtnText, continuacaoFiltro === 'todas' && { color: '#fff' }]}>Todas</Text>
+            </TouchableOpacity>
+            {contDisponíveis.includes(1) && (
+              <TouchableOpacity
+                style={[hStyles.filterBtn, continuacaoFiltro === '1' && hStyles.filterBtnActive]}
+                onPress={() => setContinuacaoFiltro('1')}
+              >
+                <Text style={[hStyles.filterBtnText, continuacaoFiltro === '1' && { color: '#fff' }]}>1ª</Text>
+              </TouchableOpacity>
+            )}
+            {contDisponíveis.includes(2) && (
+              <TouchableOpacity
+                style={[hStyles.filterBtn, continuacaoFiltro === '2' && hStyles.filterBtnActive]}
+                onPress={() => setContinuacaoFiltro('2')}
+              >
+                <Text style={[hStyles.filterBtnText, continuacaoFiltro === '2' && { color: '#fff' }]}>2ª</Text>
+              </TouchableOpacity>
+            )}
+            {contDisponíveis.includes(3) && (
+              <TouchableOpacity
+                style={[hStyles.filterBtn, continuacaoFiltro === '3' && hStyles.filterBtnActive]}
+                onPress={() => setContinuacaoFiltro('3')}
+              >
+                <Text style={[hStyles.filterBtnText, continuacaoFiltro === '3' && { color: '#fff' }]}>3ª</Text>
+              </TouchableOpacity>
+            )}
+            {contDisponíveis.includes(4) && (
+              <TouchableOpacity
+                style={[hStyles.filterBtn, continuacaoFiltro === '4' && hStyles.filterBtnActive]}
+                onPress={() => setContinuacaoFiltro('4')}
+              >
+                <Text style={[hStyles.filterBtnText, continuacaoFiltro === '4' && { color: '#fff' }]}>4ª</Text>
+              </TouchableOpacity>
+            )}
+            {contDisponíveis.includes(5) && (
+              <TouchableOpacity
+                style={[hStyles.filterBtn, continuacaoFiltro === '5' && hStyles.filterBtnActive]}
+                onPress={() => setContinuacaoFiltro('5')}
+              >
+                <Text style={[hStyles.filterBtnText, continuacaoFiltro === '5' && { color: '#fff' }]}>5ª</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
 
         <TextInput
           style={hStyles.searchInput}
@@ -208,6 +290,7 @@ function PresencaScreen({
                     value={novaComum}
                     onChangeText={setNovaComum}
                     placeholderTextColor="#94a3b8"
+                    autoFocus
                   />
                   <TouchableOpacity style={hStyles.btnSmPrimary} onPress={adicionarVisitante}>
                     <Text style={hStyles.btnSmPrimaryText}>✅ Adicionar Visitante</Text>
@@ -234,11 +317,11 @@ function PresencaScreen({
 // ─── Função para obter continuações disponíveis por grupo ───────────────────
 function getContsByGroup(grupo: 'todos' | 'irmaos' | 'irmas' | 'mocidade' | 'criancas'): number[] {
   switch (grupo) {
-    case 'irmaos': return [1, 2, 3]; // Irmãos: 1ª, 2ª, 3ª
-    case 'irmas': return [1, 2, 3, 4, 5]; // Irmãs: 1ª, 2ª, 3ª, 4ª, 5ª
-    case 'mocidade': return [3, 4, 5]; // Mocidade: 3ª, 4ª, 5ª (será filtrado por gênero)
-    case 'criancas': return [1, 2]; // Crianças: 1ª, 2ª
-    case 'todos': return [1, 2, 3, 4, 5]; // Todos: todas as continuações
+    case 'irmaos': return [1, 2, 3];
+    case 'irmas': return [1, 2, 3, 4, 5];
+    case 'mocidade': return [3, 4, 5];
+    case 'criancas': return [1, 2];
+    case 'todos': return [1, 2, 3, 4, 5];
     default: return [];
   }
 }
@@ -255,8 +338,8 @@ function filterMembersByGroup(members: Member[], grupo: 'todos' | 'irmaos' | 'ir
     filtered = filtered.filter(m => m.genero === 'F' && [1, 2, 3, 4, 5].includes(m.continuacao));
   } else if (grupo === 'mocidade') {
     filtered = filtered.filter(m => {
-      if (m.genero === 'M') return m.continuacao === 3; // Irmãos: 3ª
-      return [3, 4, 5].includes(m.continuacao); // Irmãs: 3ª, 4ª, 5ª
+      if (m.genero === 'M') return m.continuacao === 3;
+      return [3, 4, 5].includes(m.continuacao);
     });
   } else if (grupo === 'criancas') {
     filtered = filtered.filter(m => [1, 2].includes(m.continuacao));
@@ -272,7 +355,7 @@ function filterMembersByGroup(members: Member[], grupo: 'todos' | 'irmaos' | 'ir
 
 // ─── Main Histórico Screen ─────────────────────────────────────────────────────
 export default function HistoricoScreen() {
-  const { meetings, members, autenticado, showToast } = useApp();
+  const { meetings, members, autenticado, showToast, saveMeetings } = useApp();
   const [showLogin, setShowLogin] = useState(false);
   const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
 
@@ -296,7 +379,23 @@ export default function HistoricoScreen() {
 
   useFocusEffect(useCallback(() => {
     if (!autenticado) setShowLogin(true);
+    // Lançar automaticamente a próxima reunião de domingo
+    ensureNextSundayMeeting();
   }, [autenticado]));
+
+  async function ensureNextSundayMeeting() {
+    const sundayDate = getNextSundayDate();
+    const hasSundayMeeting = meetings.some(m => m.date === sundayDate);
+    if (!hasSundayMeeting) {
+      const newMeeting = {
+        id: `sched_${sundayDate}`,
+        date: sundayDate,
+        present: [],
+        isScheduled: true,
+      };
+      await saveMeetings([...meetings, newMeeting]);
+    }
+  }
 
   // Gerar lista de anos disponíveis
   const yearsAvailable = Array.from({ length: 10 }, (_, i) => {
