@@ -231,6 +231,45 @@ function PresencaScreen({
   );
 }
 
+// ─── Função para obter continuações disponíveis por grupo ───────────────────
+function getContsByGroup(grupo: 'todos' | 'irmaos' | 'irmas' | 'mocidade' | 'criancas'): number[] {
+  switch (grupo) {
+    case 'irmaos': return [1, 2, 3]; // Irmãos: 1ª, 2ª, 3ª
+    case 'irmas': return [1, 2, 3, 4, 5]; // Irmãs: 1ª, 2ª, 3ª, 4ª, 5ª
+    case 'mocidade': return [3, 4, 5]; // Mocidade: 3ª, 4ª, 5ª (será filtrado por gênero)
+    case 'criancas': return [1, 2]; // Crianças: 1ª, 2ª
+    case 'todos': return [1, 2, 3, 4, 5]; // Todos: todas as continuações
+    default: return [];
+  }
+}
+
+// ─── Função para filtrar membros por grupo e continuação ───────────────────
+function filterMembersByGroup(members: Member[], grupo: 'todos' | 'irmaos' | 'irmas' | 'mocidade' | 'criancas', continuacao: string): Member[] {
+  if (grupo === 'todos') return members;
+
+  let filtered = members;
+
+  if (grupo === 'irmaos') {
+    filtered = filtered.filter(m => m.genero === 'M' && [1, 2, 3].includes(m.continuacao));
+  } else if (grupo === 'irmas') {
+    filtered = filtered.filter(m => m.genero === 'F' && [1, 2, 3, 4, 5].includes(m.continuacao));
+  } else if (grupo === 'mocidade') {
+    filtered = filtered.filter(m => {
+      if (m.genero === 'M') return m.continuacao === 3; // Irmãos: 3ª
+      return [3, 4, 5].includes(m.continuacao); // Irmãs: 3ª, 4ª, 5ª
+    });
+  } else if (grupo === 'criancas') {
+    filtered = filtered.filter(m => [1, 2].includes(m.continuacao));
+  }
+
+  if (continuacao && continuacao !== 'todas') {
+    const cont = parseInt(continuacao);
+    filtered = filtered.filter(m => m.continuacao === cont);
+  }
+
+  return filtered;
+}
+
 // ─── Main Histórico Screen ─────────────────────────────────────────────────────
 export default function HistoricoScreen() {
   const { meetings, members, autenticado, showToast } = useApp();
@@ -244,10 +283,9 @@ export default function HistoricoScreen() {
   const [dataIni, setDataIni] = useState<string>('');
   const [dataFim, setDataFim] = useState<string>('');
   
-  // Filtros de Membros (Grupo, Subgrupo, Continuação)
+  // Filtros de Membros (Grupo, Continuação)
   const [grupoMembros, setGrupoMembros] = useState<'todos' | 'irmaos' | 'irmas' | 'mocidade' | 'criancas'>('todos');
-  const [subgrupo, setSubgrupo] = useState<string>('todos');
-  const [continuacao, setContinuacao] = useState<string>('todos');
+  const [continuacao, setContinuacao] = useState<string>('todas');
   
   // Tipo de Membro (Comum, Comum+Visitantes, Visitantes)
   const [tipoMembro, setTipoMembro] = useState<'comum' | 'comum_visitantes' | 'visitantes'>('comum');
@@ -270,6 +308,9 @@ export default function HistoricoScreen() {
   const periodosDisponiveis = (tipoIntervalo === 'semestre' || tipoIntervalo === 'trimestre' || tipoIntervalo === 'bimestre')
     ? PERIODOS_MAP[tipoIntervalo] || []
     : [];
+
+  // Obter continuações disponíveis para o grupo selecionado
+  const contDisponíveis = getContsByGroup(grupoMembros);
 
   // Calcular intervalo de datas
   function getDateRange(): [string, string] {
@@ -400,7 +441,7 @@ export default function HistoricoScreen() {
           <View style={hStyles.pickerContainer}>
             <Picker
               selectedValue={grupoMembros}
-              onValueChange={setGrupoMembros}
+              onValueChange={(value: any) => { setGrupoMembros(value); setContinuacao('todas'); }}
               style={hStyles.picker}
             >
               <Picker.Item label="👥 Todos" value="todos" />
@@ -411,26 +452,8 @@ export default function HistoricoScreen() {
             </Picker>
           </View>
 
-          {/* Subgrupo (dinâmico) */}
+          {/* Continuação (dinâmica por grupo) */}
           {grupoMembros !== 'todos' && (
-            <>
-              <Text style={hStyles.label}>Subgrupo</Text>
-              <View style={hStyles.pickerContainer}>
-                <Picker
-                  selectedValue={subgrupo}
-                  onValueChange={setSubgrupo}
-                  style={hStyles.picker}
-                >
-                  <Picker.Item label="Todos" value="todos" />
-                  <Picker.Item label="Moços" value="mocos" />
-                  <Picker.Item label="Moças" value="mocas" />
-                </Picker>
-              </View>
-            </>
-          )}
-
-          {/* Continuação (dinâmico) */}
-          {grupoMembros !== 'todos' && subgrupo !== 'todos' && (
             <>
               <Text style={hStyles.label}>Continuação</Text>
               <View style={hStyles.pickerContainer}>
@@ -440,11 +463,11 @@ export default function HistoricoScreen() {
                   style={hStyles.picker}
                 >
                   <Picker.Item label="Todas" value="todas" />
-                  <Picker.Item label="1ª Continuação" value="1" />
-                  <Picker.Item label="2ª Continuação" value="2" />
-                  <Picker.Item label="3ª Continuação" value="3" />
-                  <Picker.Item label="4ª Continuação" value="4" />
-                  <Picker.Item label="5ª Continuação" value="5" />
+                  {contDisponíveis.includes(1) && <Picker.Item label="1ª Continuação" value="1" />}
+                  {contDisponíveis.includes(2) && <Picker.Item label="2ª Continuação" value="2" />}
+                  {contDisponíveis.includes(3) && <Picker.Item label="3ª Continuação" value="3" />}
+                  {contDisponíveis.includes(4) && <Picker.Item label="4ª Continuação" value="4" />}
+                  {contDisponíveis.includes(5) && <Picker.Item label="5ª Continuação" value="5" />}
                 </Picker>
               </View>
             </>
@@ -533,7 +556,7 @@ export default function HistoricoScreen() {
                 </View>
                 <PresencaChart
                   meetings={filteredMeetings}
-                  members={members}
+                  members={filterMembersByGroup(members, grupoMembros, continuacao)}
                   chartType={chartType}
                   title={`Presença no Período`}
                 />

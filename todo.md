@@ -78,3 +78,8 @@
 
 - [x] Restaurar todos os filtros originais na aba Histórico (Ano, Intervalo, Período, Datas, Grupo, Subgrupo, Continuação, Tipo de Membro)
 - [x] Manter o gráfico de presença já implementado
+
+
+## Correções Adicionais
+
+- [x] Corrigir lógica de filtros: remover subgrupo dinâmico e aplicar continuações corretas por grupo
