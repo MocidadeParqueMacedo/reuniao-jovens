@@ -1,10 +1,37 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, Alert, ScrollView, StyleSheet } from 'react-native';
 import { ScreenContainer } from '@/components/screen-container';
 import { useApp } from '@/lib/app-context';
+import { loadCurrentUser } from '@/lib/auth-persistence';
+
+const styles = StyleSheet.create({
+  logoutButton: {
+    backgroundColor: '#ef4444',
+    borderRadius: 8,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 32,
+  },
+  logoutButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 18,
+  },
+});
 
 export default function PerfilScreen() {
   const { autenticado, logout } = useApp();
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
+
+  // Carregar email do usuário logado
+  useEffect(() => {
+    const loadUserEmail = async () => {
+      const email = await loadCurrentUser();
+      console.log('📧 Email do usuário logado:', email);
+      setCurrentUserEmail(email);
+    };
+    loadUserEmail();
+  }, [autenticado]);
 
   const handleLogout = () => {
     Alert.alert(
@@ -47,7 +74,9 @@ export default function PerfilScreen() {
         <View className="bg-surface border border-border rounded-lg p-6 mb-6">
           <View className="mb-4">
             <Text className="text-muted text-sm mb-1">Email</Text>
-            <Text className="text-foreground font-semibold text-lg">usuario@example.com</Text>
+            <Text className="text-foreground font-semibold text-lg">
+              {currentUserEmail || 'Carregando...'}
+            </Text>
           </View>
           <View>
             <Text className="text-muted text-sm mb-1">Status</Text>
@@ -75,12 +104,12 @@ export default function PerfilScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Logout Button */}
+        {/* Logout Button - USANDO STYLE */}
         <TouchableOpacity
           onPress={handleLogout}
-          className="bg-error rounded-lg py-4 items-center mt-8"
+          style={styles.logoutButton}
         >
-          <Text className="text-white font-bold text-lg">🚪 Fazer Logout</Text>
+          <Text style={styles.logoutButtonText}>🚪 Fazer Logout</Text>
         </TouchableOpacity>
 
         {/* Footer */}

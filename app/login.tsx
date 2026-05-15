@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Alert, StyleSheet } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
 import { useApp } from '@/lib/app-context';
@@ -11,26 +11,50 @@ import {
   RegisteredUser 
 } from '@/lib/auth-persistence';
 
+const styles = StyleSheet.create({
+  button: {
+    backgroundColor: '#6366f1',
+    borderRadius: 8,
+    paddingVertical: 16,
+    marginTop: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 18,
+  },
+  toggleButton: {
+    paddingVertical: 4,
+  },
+  toggleText: {
+    color: '#6366f1',
+    fontWeight: 'bold',
+  },
+});
+
 export default function LoginScreen() {
   const { setAutenticado } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isRegister, setIsRegister] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [registeredUsers, setRegisteredUsers] = useState<Record<string, RegisteredUser>>({});
 
   // Recarregar usuários quando a tela é focada (volta do admin)
   useFocusEffect(
     React.useCallback(() => {
       const loadUsers = async () => {
-        const users = await loadRegisteredUsers();
-        setRegisteredUsers(users);
+        console.log('📋 Recarregando usuários ao focar na tela de login');
       };
       loadUsers();
     }, [])
   );
 
   const handleLogin = async () => {
+    console.log('🔐 handleLogin chamado com email:', email, 'password:', password);
+    
     // Validação básica
     if (!email || !password) {
       Alert.alert('Erro', 'Por favor, preencha todos os campos');
@@ -56,6 +80,8 @@ export default function LoginScreen() {
 
       // PASSO 3: Verificar se o email existe
       const user = currentUsers[email];
+      console.log('👤 Usuário encontrado:', user);
+      
       if (!user) {
         console.log('❌ Email não encontrado');
         Alert.alert(
@@ -96,6 +122,8 @@ export default function LoginScreen() {
   };
 
   const handleRegister = async () => {
+    console.log('📝 handleRegister chamado com email:', email);
+    
     if (!email || !password) {
       Alert.alert('Erro', 'Por favor, preencha email e senha');
       return;
@@ -131,7 +159,6 @@ export default function LoginScreen() {
         [email]: newUser,
       };
 
-      setRegisteredUsers(updatedUsers);
       await saveRegisteredUsers(updatedUsers);
 
       Alert.alert(
@@ -193,16 +220,16 @@ export default function LoginScreen() {
             </View>
           </View>
 
-          {/* Button */}
+          {/* Button - USANDO STYLE EM VEZ DE CLASSNAME */}
           <TouchableOpacity
             onPress={isRegister ? handleRegister : handleLogin}
             disabled={isLoading}
-            className="bg-primary rounded-lg py-4 mt-6 flex-row items-center justify-center"
+            style={styles.button}
           >
             {isLoading ? (
               <ActivityIndicator color="white" />
             ) : (
-              <Text className="text-white font-bold text-lg">
+              <Text style={styles.buttonText}>
                 {isRegister ? 'Cadastrar' : 'Entrar'}
               </Text>
             )}
@@ -213,8 +240,12 @@ export default function LoginScreen() {
             <Text className="text-muted">
               {isRegister ? 'Já tem conta? ' : 'Não tem conta? '}
             </Text>
-            <TouchableOpacity onPress={() => setIsRegister(!isRegister)} disabled={isLoading}>
-              <Text className="text-primary font-bold">
+            <TouchableOpacity 
+              onPress={() => setIsRegister(!isRegister)} 
+              disabled={isLoading}
+              style={styles.toggleButton}
+            >
+              <Text style={styles.toggleText}>
                 {isRegister ? 'Fazer Login' : 'Cadastrar'}
               </Text>
             </TouchableOpacity>
