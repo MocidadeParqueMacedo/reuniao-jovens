@@ -222,9 +222,17 @@ export default function LoginScreen() {
 
           {/* Button - USANDO STYLE EM VEZ DE CLASSNAME */}
           <TouchableOpacity
-            onPress={isRegister ? handleRegister : handleLogin}
+            onPress={() => {
+              console.log('🔘 Botão pressionado! isRegister:', isRegister);
+              if (isRegister) {
+                handleRegister();
+              } else {
+                handleLogin();
+              }
+            }}
             disabled={isLoading}
             style={styles.button}
+            activeOpacity={0.7}
           >
             {isLoading ? (
               <ActivityIndicator color="white" />
