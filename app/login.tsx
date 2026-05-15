@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { ScreenContainer } from '@/components/screen-container';
 import { useApp } from '@/lib/app-context';
 import { trpc } from '@/lib/trpc';
 import { useRouter } from 'expo-router';
+import { useGoogleAuth } from '@/lib/useGoogleAuth';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -16,11 +17,24 @@ export default function LoginScreen() {
   // tRPC mutations
   const loginMutation = trpc.auth.login.useMutation();
   const registerMutation = trpc.auth.register.useMutation();
-  const googleLoginMutation = trpc.auth.googleLogin.useMutation();
+  const { signIn: googleSignIn, loading: googleLoading, error: googleError, isReady: googleReady } = useGoogleAuth();
+
+  // Monitor Google OAuth errors
+  useEffect(() => {
+    if (googleError) {
+      showToast(googleError);
+    }
+  }, [googleError]);
 
   const handleGoogleLogin = async () => {
+    if (!googleReady) {
+      showToast('Google OAuth não está configurado. Configure EXPO_PUBLIC_GOOGLE_CLIENT_ID.');
+      return;
+    }
     try {
-      showToast('Google OAuth será implementado em breve');
+      await googleSignIn();
+      showToast('Login com Google realizado com sucesso!');
+      router.replace('/(tabs)');
     } catch (error: any) {
       showToast(error.message || 'Erro ao fazer login com Google');
     }
@@ -64,7 +78,7 @@ export default function LoginScreen() {
     }
   };
 
-  const isLoading = loginMutation.isPending || registerMutation.isPending;
+  const isLoading = loginMutation.isPending || registerMutation.isPending || googleLoading;
 
   return (
     <ScreenContainer className="bg-gradient-to-b from-primary to-background">
