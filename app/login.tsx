@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
 import { useApp } from '@/lib/app-context';
 import { ADMIN_EMAIL, ADMIN_PASSWORD } from '@/lib/auth-store';
@@ -18,14 +19,16 @@ export default function LoginScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [registeredUsers, setRegisteredUsers] = useState<Record<string, RegisteredUser>>({});
 
-  // Carregar usuários ao montar o componente
-  useEffect(() => {
-    const loadUsers = async () => {
-      const users = await loadRegisteredUsers();
-      setRegisteredUsers(users);
-    };
-    loadUsers();
-  }, []);
+  // Recarregar usuários quando a tela é focada (volta do admin)
+  useFocusEffect(
+    React.useCallback(() => {
+      const loadUsers = async () => {
+        const users = await loadRegisteredUsers();
+        setRegisteredUsers(users);
+      };
+      loadUsers();
+    }, [])
+  );
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -44,12 +47,8 @@ export default function LoginScreen() {
         return;
       }
 
-      // Recarregar usuários para ter dados atualizados
-      const currentUsers = await loadRegisteredUsers();
-      setRegisteredUsers(currentUsers);
-
       // Check if user exists
-      const user = currentUsers[email];
+      const user = registeredUsers[email];
       if (!user) {
         alert('Conta não encontrada.\n\nVocê não tem uma conta registrada com este email. Por favor, crie uma conta primeiro.');
         return;
