@@ -26,6 +26,7 @@ export function OfflineNotice() {
 
   return (
     <Animated.View
+      pointerEvents="box-none"
       style={{ transform: [{ translateY: slideAnim }] }}
       className="bg-warning px-4 py-3 flex-row items-center gap-2"
     >
