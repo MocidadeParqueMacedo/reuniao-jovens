@@ -72,3 +72,9 @@
 
 - [x] Adicionar filtros de intervalo na tela Histórico (semestre, trimestre, bimestre, personalizado)
 - [x] Implementar gráficos de presença (linha e barra) com base no filtro aplicado
+
+
+## Correções Solicitadas
+
+- [x] Restaurar todos os filtros originais na aba Histórico (Ano, Intervalo, Período, Datas, Grupo, Subgrupo, Continuação, Tipo de Membro)
+- [x] Manter o gráfico de presença já implementado

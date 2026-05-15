@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   StyleSheet, Alert, Modal,
@@ -93,8 +93,6 @@ function PresencaScreen({
   const contLabel = (m: Member) => { const o=['','1ª','2ª','3ª','4ª','5ª']; return `${o[m.continuacao]||m.continuacao} Cont.`; };
   const gLabel = (m: Member) => m.genero === 'M' ? 'Irmão' : 'Irmã';
 
-  const tipoExibir = tipoMembro === 'visitantes' ? 'Visitantes' : tipoMembro === 'comum_visitantes' ? 'Membros + Visitantes' : 'Membros';
-
   return (
     <View style={hStyles.presencaContainer}>
       <View style={hStyles.presencaHeader}>
@@ -108,27 +106,23 @@ function PresencaScreen({
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 30 }}>
-        <View style={hStyles.filterRow}>
-          <TouchableOpacity
-            style={[hStyles.filterBtn, tipoMembro === 'comum' && hStyles.filterBtnActive]}
-            onPress={() => setTipoMembro('comum')}
-          >
-            <Text style={[hStyles.filterBtnText, tipoMembro === 'comum' && { color: '#fff' }]}>👥 Membros</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[hStyles.filterBtn, tipoMembro === 'comum_visitantes' && hStyles.filterBtnActive]}
-            onPress={() => setTipoMembro('comum_visitantes')}
-          >
-            <Text style={[hStyles.filterBtnText, tipoMembro === 'comum_visitantes' && { color: '#fff' }]}>👥+👤</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[hStyles.filterBtn, tipoMembro === 'visitantes' && hStyles.filterBtnActive]}
-            onPress={() => setTipoMembro('visitantes')}
-          >
-            <Text style={[hStyles.filterBtnText, tipoMembro === 'visitantes' && { color: '#fff' }]}>👤 Visitantes</Text>
-          </TouchableOpacity>
+        {/* Filtro de Tipo de Membro */}
+        <View style={hStyles.card}>
+          <Text style={hStyles.label}>Exibir</Text>
+          <View style={hStyles.pickerContainer}>
+            <Picker
+              selectedValue={tipoMembro}
+              onValueChange={setTipoMembro}
+              style={hStyles.picker}
+            >
+              <Picker.Item label="👥 Comum (membros cadastrados)" value="comum" />
+              <Picker.Item label="👥+👤 Comum + Visitantes" value="comum_visitantes" />
+              <Picker.Item label="👤 Visitantes" value="visitantes" />
+            </Picker>
+          </View>
         </View>
 
+        {/* Filtro de Gênero */}
         <View style={hStyles.filterRow}>
           <TouchableOpacity
             style={[hStyles.filterBtn, generoFiltro === 'todos' && hStyles.filterBtnActive]}
@@ -206,6 +200,8 @@ function PresencaScreen({
               )}
               {showAddVisitante && (
                 <View style={hStyles.addVisitanteForm}>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#4f46e5', marginBottom: 8 }}>👤 Novo Visitante</Text>
+                  <Text style={hStyles.label}>Qual a comum?</Text>
                   <TextInput
                     style={hStyles.visitanteInput}
                     placeholder="Nome da comum..."
@@ -214,7 +210,7 @@ function PresencaScreen({
                     placeholderTextColor="#94a3b8"
                   />
                   <TouchableOpacity style={hStyles.btnSmPrimary} onPress={adicionarVisitante}>
-                    <Text style={hStyles.btnSmPrimaryText}>✅ Adicionar</Text>
+                    <Text style={hStyles.btnSmPrimaryText}>✅ Adicionar Visitante</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -241,12 +237,22 @@ export default function HistoricoScreen() {
   const [showLogin, setShowLogin] = useState(false);
   const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
 
-  // Filtros
+  // ─── Filtros ───────────────────────────────────────────────────────────────
   const [ano, setAno] = useState<string>(String(new Date().getFullYear()));
   const [tipoIntervalo, setTipoIntervalo] = useState<'todas' | 'semestre' | 'trimestre' | 'bimestre' | 'custom'>('todas');
   const [periodoSelecionado, setPeriodoSelecionado] = useState<string>('');
   const [dataIni, setDataIni] = useState<string>('');
   const [dataFim, setDataFim] = useState<string>('');
+  
+  // Filtros de Membros (Grupo, Subgrupo, Continuação)
+  const [grupoMembros, setGrupoMembros] = useState<'todos' | 'irmaos' | 'irmas' | 'mocidade' | 'criancas'>('todos');
+  const [subgrupo, setSubgrupo] = useState<string>('todos');
+  const [continuacao, setContinuacao] = useState<string>('todos');
+  
+  // Tipo de Membro (Comum, Comum+Visitantes, Visitantes)
+  const [tipoMembro, setTipoMembro] = useState<'comum' | 'comum_visitantes' | 'visitantes'>('comum');
+  
+  // Gráfico
   const [chartType, setChartType] = useState<'line' | 'bar'>('line');
   const [showChart, setShowChart] = useState(false);
 
@@ -311,12 +317,12 @@ export default function HistoricoScreen() {
     <ScreenContainer containerClassName="bg-background" edges={['top','left','right']}>
       <View style={hStyles.header}><Text style={hStyles.headerTitle}>📅 Histórico</Text></View>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 30 }}>
-        {/* Filtros Card */}
+        {/* FILTRO CARD */}
         <View style={hStyles.card}>
           <Text style={hStyles.cardTitle}>🔍 Filtros</Text>
 
           {/* Ano */}
-          <Text style={hStyles.label}>📅 Ano</Text>
+          <Text style={hStyles.label}>Ano</Text>
           <View style={hStyles.pickerContainer}>
             <Picker
               selectedValue={ano}
@@ -330,19 +336,19 @@ export default function HistoricoScreen() {
           </View>
 
           {/* Tipo de Intervalo */}
-          <Text style={hStyles.label}>⏱️ Intervalo</Text>
-          <View style={hStyles.filterRow}>
-            {['todas', 'semestre', 'trimestre', 'bimestre', 'custom'].map(tipo => (
-              <TouchableOpacity
-                key={tipo}
-                style={[hStyles.filterBtn, tipoIntervalo === tipo && hStyles.filterBtnActive]}
-                onPress={() => { setTipoIntervalo(tipo as any); setPeriodoSelecionado(''); }}
-              >
-                <Text style={[hStyles.filterBtnText, tipoIntervalo === tipo && { color: '#fff' }]}>
-                  {tipo === 'todas' ? 'Todas' : tipo === 'custom' ? 'Custom' : tipo.charAt(0).toUpperCase() + tipo.slice(1)}
-                </Text>
-              </TouchableOpacity>
-            ))}
+          <Text style={hStyles.label}>Intervalo</Text>
+          <View style={hStyles.pickerContainer}>
+            <Picker
+              selectedValue={tipoIntervalo}
+              onValueChange={(value: any) => { setTipoIntervalo(value); setPeriodoSelecionado(''); }}
+              style={hStyles.picker}
+            >
+              <Picker.Item label="Todas as reuniões" value="todas" />
+              <Picker.Item label="Semestre" value="semestre" />
+              <Picker.Item label="Trimestre" value="trimestre" />
+              <Picker.Item label="Bimestre" value="bimestre" />
+              <Picker.Item label="Personalizado" value="custom" />
+            </Picker>
           </View>
 
           {/* Período (se semestre/trimestre/bimestre) */}
@@ -367,7 +373,7 @@ export default function HistoricoScreen() {
           {/* Datas personalizadas (se custom) */}
           {tipoIntervalo === 'custom' && (
             <>
-              <Text style={hStyles.label}>📅 De</Text>
+              <Text style={hStyles.label}>De</Text>
               <TextInput
                 style={hStyles.input}
                 placeholder="YYYY-MM-DD"
@@ -375,7 +381,7 @@ export default function HistoricoScreen() {
                 onChangeText={setDataIni}
                 placeholderTextColor="#94a3b8"
               />
-              <Text style={hStyles.label}>📅 Até</Text>
+              <Text style={hStyles.label}>Até</Text>
               <TextInput
                 style={hStyles.input}
                 placeholder="YYYY-MM-DD"
@@ -386,10 +392,82 @@ export default function HistoricoScreen() {
             </>
           )}
 
+          {/* Divider */}
+          <View style={hStyles.divider} />
+
+          {/* Grupo de Membros */}
+          <Text style={hStyles.label}>Grupo de Membros</Text>
+          <View style={hStyles.pickerContainer}>
+            <Picker
+              selectedValue={grupoMembros}
+              onValueChange={setGrupoMembros}
+              style={hStyles.picker}
+            >
+              <Picker.Item label="👥 Todos" value="todos" />
+              <Picker.Item label="👨 Irmãos" value="irmaos" />
+              <Picker.Item label="👩 Irmãs" value="irmas" />
+              <Picker.Item label="🧑‍🤝‍🧑 Mocidade" value="mocidade" />
+              <Picker.Item label="👧🧒 Crianças" value="criancas" />
+            </Picker>
+          </View>
+
+          {/* Subgrupo (dinâmico) */}
+          {grupoMembros !== 'todos' && (
+            <>
+              <Text style={hStyles.label}>Subgrupo</Text>
+              <View style={hStyles.pickerContainer}>
+                <Picker
+                  selectedValue={subgrupo}
+                  onValueChange={setSubgrupo}
+                  style={hStyles.picker}
+                >
+                  <Picker.Item label="Todos" value="todos" />
+                  <Picker.Item label="Moços" value="mocos" />
+                  <Picker.Item label="Moças" value="mocas" />
+                </Picker>
+              </View>
+            </>
+          )}
+
+          {/* Continuação (dinâmico) */}
+          {grupoMembros !== 'todos' && subgrupo !== 'todos' && (
+            <>
+              <Text style={hStyles.label}>Continuação</Text>
+              <View style={hStyles.pickerContainer}>
+                <Picker
+                  selectedValue={continuacao}
+                  onValueChange={setContinuacao}
+                  style={hStyles.picker}
+                >
+                  <Picker.Item label="Todas" value="todas" />
+                  <Picker.Item label="1ª Continuação" value="1" />
+                  <Picker.Item label="2ª Continuação" value="2" />
+                  <Picker.Item label="3ª Continuação" value="3" />
+                  <Picker.Item label="4ª Continuação" value="4" />
+                  <Picker.Item label="5ª Continuação" value="5" />
+                </Picker>
+              </View>
+            </>
+          )}
+
+          {/* Tipo de Membro */}
+          <Text style={hStyles.label}>Tipo de Membro</Text>
+          <View style={hStyles.pickerContainer}>
+            <Picker
+              selectedValue={tipoMembro}
+              onValueChange={setTipoMembro}
+              style={hStyles.picker}
+            >
+              <Picker.Item label="👥 Comum" value="comum" />
+              <Picker.Item label="👥+👤 Comum + Visitantes" value="comum_visitantes" />
+              <Picker.Item label="👤 Visitantes" value="visitantes" />
+            </Picker>
+          </View>
+
           {/* Botões de Ação */}
           <View style={hStyles.filterRow}>
             <TouchableOpacity style={[hStyles.btnSmPrimary, { flex: 1 }]} onPress={() => setShowChart(true)}>
-              <Text style={hStyles.btnSmPrimaryText}>📊 Gráfico</Text>
+              <Text style={hStyles.btnSmPrimaryText}>📊 Visualizar</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -482,6 +560,7 @@ const hStyles = StyleSheet.create({
   pickerContainer: { borderWidth: 1.5, borderColor: '#e2e8f0', borderRadius: 9, backgroundColor: '#f1f5f9', marginBottom: 10, overflow: 'hidden' },
   picker: { color: '#1e293b' },
   input: { borderWidth: 1.5, borderColor: '#e2e8f0', borderRadius: 9, padding: 10, fontSize: 14, backgroundColor: '#f1f5f9', color: '#1e293b', marginBottom: 10 },
+  divider: { borderTopWidth: 1, borderTopColor: '#e2e8f0', marginVertical: 12 },
   filterRow: { flexDirection: 'row', gap: 8, marginBottom: 10, flexWrap: 'wrap' },
   filterBtn: { flex: 1, minWidth: '30%', borderWidth: 1.5, borderColor: '#e2e8f0', borderRadius: 9, padding: 10, alignItems: 'center', backgroundColor: '#f8fafc' },
   filterBtnActive: { backgroundColor: '#4f46e5', borderColor: '#4f46e5' },
