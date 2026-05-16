@@ -141,6 +141,15 @@ export default function EventsScreen() {
 
         {/* Mini Calendar */}
         <View style={styles.calendarSection}>
+          <View style={styles.calendarYearControls}>
+            <TouchableOpacity onPress={() => setCalendarYear(y => y - 1)}>
+              <Text style={styles.calendarButton}>◀◀</Text>
+            </TouchableOpacity>
+            <Text style={styles.calendarYear}>{calendarYear}</Text>
+            <TouchableOpacity onPress={() => setCalendarYear(y => y + 1)}>
+              <Text style={styles.calendarButton}>▶▶</Text>
+            </TouchableOpacity>
+          </View>
           <View style={styles.calendarControls}>
             <TouchableOpacity onPress={() => setCalendarMonth(m => m === 0 ? 11 : m - 1)}>
               <Text style={styles.calendarButton}>◀</Text>
@@ -252,6 +261,20 @@ const styles = StyleSheet.create({
   calendarSection: {
     paddingHorizontal: 16,
     paddingVertical: 16,
+  },
+  calendarYearControls: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  calendarYear: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1f2937',
   },
   calendarControls: {
     flexDirection: 'row',

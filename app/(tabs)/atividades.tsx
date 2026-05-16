@@ -141,6 +141,19 @@ export default function AtividadesScreen() {
     setShowPreferences(false);
   }
 
+  async function handleExportPDF() {
+    try {
+      const html = ExportService.generateHTML(filteredRecords, 'Relatório de Atividades - Reunião de Jovens');
+      const fileName = ExportService.generateFileName('pdf');
+      await Share.share({
+        message: html,
+        title: fileName,
+      });
+    } catch (error) {
+      Alert.alert('Erro', 'Não foi possível exportar PDF');
+    }
+  }
+
   const stats = ActivityHistory.getStats();
   const paginatedData = filteredRecords.slice((page - 1) * pageSize, page * pageSize);
   const totalPages = Math.ceil(filteredRecords.length / pageSize);
@@ -166,13 +179,19 @@ export default function AtividadesScreen() {
         </View>
       </View>
 
-      {/* Filtros */}
+      {/* Filtros e Ações */}
       <View style={styles.filterBar}>
         <TouchableOpacity
           style={styles.filterButton}
           onPress={() => setShowFilters(!showFilters)}
         >
           <Text style={styles.filterButtonText}>🔍 Filtros</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.pdfButton}
+          onPress={handleExportPDF}
+        >
+          <Text style={styles.pdfButtonText}>📄 PDF</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.clearButton} onPress={handleClearHistory}>
           <Text style={styles.clearButtonText}>🗑️ Limpar</Text>
@@ -408,6 +427,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   filterButtonText: {
+    color: '#ffffff',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  pdfButton: {
+    backgroundColor: '#8b5cf6',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  pdfButtonText: {
     color: '#ffffff',
     fontWeight: '600',
     fontSize: 14,
