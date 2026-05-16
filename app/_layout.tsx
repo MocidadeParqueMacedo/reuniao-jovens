@@ -8,7 +8,13 @@ import { ThemeProvider } from '@/lib/theme-provider';
 import { AppProvider, useApp } from '@/lib/app-context';
 import { Toast } from '@/components/Toast';
 import { OfflineNotice } from '@/components/OfflineNotice';
+import { ActivityToast } from '@/components/activity-toast';
 import '../global.css';
+
+function ActivityToastWrapper() {
+  const { activity } = useApp();
+  return <ActivityToast notification={activity} />;
+}
 
 // Create Query Client
 const queryClient = new QueryClient({
@@ -18,7 +24,7 @@ const queryClient = new QueryClient({
 });
 
 function RootLayoutContent() {
-  const { autenticado } = useApp();
+  const { autenticado, activity } = useApp();
   const [, setRender] = React.useState(0);
 
   React.useEffect(() => {
@@ -52,6 +58,7 @@ export default function RootLayout() {
               <RootLayoutContent />
               <OfflineNotice />
               <Toast />
+              <ActivityToastWrapper />
               <StatusBar style="light" />
             </AppProvider>
           </ThemeProvider>

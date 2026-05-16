@@ -4,6 +4,7 @@ import { DB, Member, Meeting, CalEvent, Visitor, Visita, Ata, Versinho, ensureNe
 import { loadCurrentUser, loadRegisteredUsers, saveRegisteredUsers, saveCurrentUser } from './auth-persistence';
 import { ADMIN_EMAIL, ADMIN_PASSWORD } from './auth-store';
 import { useWebSocketSync, registerWebSocketCallbacks } from './use-websocket-sync';
+import { ActivityNotification, registerActivityCallback } from './activity-notifications';
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 // Autenticação agora é apenas via Google OAuth - sem senha local
@@ -50,6 +51,9 @@ interface AppContextValue extends AuthState, AppData {
   toast: string;
   toastType: 'success' | 'error' | 'info';
   showToast: (msg: string, type?: 'success' | 'error' | 'info') => void;
+  // Notificações de Atividade
+  activity: ActivityNotification | null;
+  onActivityNotification: (callback: (notification: ActivityNotification) => void) => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -124,12 +128,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
+  const [activity, setActivity] = useState<ActivityNotification | null>(null);
 
   const showToast = useCallback((msg: string, type: 'success' | 'error' | 'info' = 'info') => {
     setToast(msg);
     setToastType(type);
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(''), 2500);
+  }, []);
+
+  const onActivityNotification = useCallback((callback: (notification: ActivityNotification) => void) => {
+    registerActivityCallback((notification) => {
+      setActivity(notification);
+      callback(notification);
+      // Limpar notificação após 4 segundos
+      setTimeout(() => setActivity(null), 4000);
+    });
   }, []);
 
   const saveMembers = useCallback(async (v: Member[]) => {
@@ -266,6 +280,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setVisitas, setVisitasComuns, setAtas, setVersinhos,
       checkAndNotifyAbsences,
       toast, toastType, showToast,
+      activity, onActivityNotification,
     }}
     >
       {!authLoading && children}
