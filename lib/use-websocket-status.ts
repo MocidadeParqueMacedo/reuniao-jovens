@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { getApiBaseUrl } from '@/constants/oauth';
 
 export type WebSocketStatus = 'connecting' | 'connected' | 'disconnected' | 'reconnecting';
 
@@ -13,9 +14,15 @@ export function useWebSocketStatus() {
     // Monitorar mudanças de conexão
     const checkConnection = setInterval(() => {
       try {
-        const protocol = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const host = typeof window !== 'undefined' ? window.location.host : 'localhost:3000';
-        const wsUrl = `${protocol}//${host}/ws`;
+        const apiBaseUrl = getApiBaseUrl();
+        let wsUrl = '';
+        
+        if (apiBaseUrl) {
+          wsUrl = apiBaseUrl.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:') + '/ws';
+        } else {
+          const protocol = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+          wsUrl = `${protocol}//localhost:3000/ws`;
+        }
 
         // Tentar conectar para verificar status
         const testWs = new WebSocket(wsUrl);

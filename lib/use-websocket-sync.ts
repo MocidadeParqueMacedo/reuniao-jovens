@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
+import { getApiBaseUrl } from '@/constants/oauth';
 
 interface SyncMessage {
   type: 'sync' | 'update' | 'subscribe' | 'unsubscribe' | 'ping' | 'pong' | 'connected';
@@ -110,10 +111,18 @@ export function useWebSocketSync() {
   // Conectar ao WebSocket
   const connect = useCallback(() => {
     try {
-      // Construir URL do WebSocket
-      const protocol = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const host = typeof window !== 'undefined' ? window.location.host : 'localhost:3000';
-      const wsUrl = `${protocol}//${host}/ws`;
+      // Construir URL do WebSocket usando a mesma estratégia da API HTTP
+      const apiBaseUrl = getApiBaseUrl();
+      let wsUrl = '';
+      
+      if (apiBaseUrl) {
+        // Converter URL HTTP para WebSocket
+        wsUrl = apiBaseUrl.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:') + '/ws';
+      } else {
+        // Fallback para localhost (desenvolvimento local)
+        const protocol = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        wsUrl = `${protocol}//localhost:3000/ws`;
+      }
 
       console.log('🔌 Conectando ao WebSocket:', wsUrl);
 
