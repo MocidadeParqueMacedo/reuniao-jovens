@@ -57,17 +57,12 @@ export function getApiBaseUrl(): string {
       
       if (hostUri) {
         // hostUri is like "8081-sandboxid.region.domain:8081"
-        // Extract hostname and replace port 8081 with 3000
+        // Use the same hostname with port 8081 (API server runs on same port as Metro)
         const hostname = hostUri.split(":")[0];
-        const apiHostname = hostname.replace(/^8081-/, "3000-");
+        const result = `https://${hostname}`;
         console.log("[getApiBaseUrl] hostname:", hostname);
-        console.log("[getApiBaseUrl] apiHostname:", apiHostname);
-        
-        if (apiHostname !== hostname) {
-          const result = `https://${apiHostname}`;
-          console.log("[getApiBaseUrl] Derived API base URL for mobile:", result);
-          return result;
-        }
+        console.log("[getApiBaseUrl] Derived API base URL for mobile:", result);
+        return result;
       } else {
         console.log("[getApiBaseUrl] hostUri is null/undefined");
       }
