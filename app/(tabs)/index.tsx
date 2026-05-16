@@ -63,7 +63,7 @@ function buildCalData(year: number, members: any[], events: CalEvent[], meetings
   return data;
 }
 
-function MiniCalendar({ year, month, data }: any) {
+function MiniCalendar({ year, month, data, onDayPress }: any) {
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const daysInPrevMonth = new Date(year, month, 0).getDate();
@@ -85,14 +85,29 @@ function MiniCalendar({ year, month, data }: any) {
         {days.map((d, i) => {
           const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d.day).padStart(2, '0')}`;
           const dayData = data[dateStr];
-          const hasContent = dayData && (dayData.birthdays.length > 0 || dayData.events.length > 0 || dayData.meetings.length > 0 || dayData.visitas.length > 0);
+          const hasMeetings = dayData && dayData.meetings.length > 0;
+          const hasEvents = dayData && dayData.events.length > 0;
+          const hasVisitas = dayData && dayData.visitas.length > 0;
+          const hasBirthdays = dayData && dayData.birthdays.length > 0;
+          const hasContent = hasMeetings || hasEvents || hasVisitas || hasBirthdays;
+          
+          let dotColor = '#6366f1';
+          if (hasMeetings) dotColor = '#ef4444';
+          else if (hasEvents) dotColor = '#3b82f6';
+          else if (hasVisitas) dotColor = '#8b5cf6';
+          else if (hasBirthdays) dotColor = '#f59e0b';
+          
           return (
-            <View key={i} style={[styles.miniCalendarDay, d.isOtherMonth && styles.miniCalendarDayOther]}>
+            <TouchableOpacity 
+              key={i} 
+              style={[styles.miniCalendarDay, d.isOtherMonth && styles.miniCalendarDayOther]}
+              onPress={() => hasContent && onDayPress?.(dateStr, dayData)}
+            >
               <Text style={[styles.miniCalendarDayText, d.isOtherMonth && styles.miniCalendarDayTextOther]}>
                 {d.day}
               </Text>
-              {hasContent && <View style={styles.miniCalendarDayDot} />}
-            </View>
+              {hasContent && <View style={[styles.miniCalendarDayDot, { backgroundColor: dotColor }]} />}
+            </TouchableOpacity>
           );
         })}
       </View>
@@ -108,6 +123,15 @@ export default function EventsScreen() {
   const [showModal, setShowModal] = useState(false);
   const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
   const [calendarMonth, setCalendarMonth] = useState(new Date().getMonth());
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedDayData, setSelectedDayData] = useState<any>(null);
+  const [showDayDetails, setShowDayDetails] = useState(false);
+
+  const handleDayPress = (dateStr: string, dayData: any) => {
+    setSelectedDate(dateStr);
+    setSelectedDayData(dayData);
+    setShowDayDetails(true);
+  };
 
   useFocusEffect(React.useCallback(() => {
     console.log('📅 EventsScreen focado - autenticado:', autenticado);
@@ -166,7 +190,27 @@ export default function EventsScreen() {
               <Text style={styles.calendarButton}>▶</Text>
             </TouchableOpacity>
           </View>
-          <MiniCalendar year={calendarYear} month={calendarMonth} data={calData} />
+          <MiniCalendar year={calendarYear} month={calendarMonth} data={calData} onDayPress={handleDayPress} />
+          
+          {/* Legenda */}
+          <View style={styles.calendarLegend}>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: '#ef4444' }]} />
+              <Text style={styles.legendText}>Reuniões</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: '#3b82f6' }]} />
+              <Text style={styles.legendText}>Eventos</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: '#8b5cf6' }]} />
+              <Text style={styles.legendText}>Visitas</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: '#f59e0b' }]} />
+              <Text style={styles.legendText}>Aniversários</Text>
+            </View>
+          </View>
         </View>
 
         {/* Events List */}
@@ -228,6 +272,54 @@ export default function EventsScreen() {
                   <Text style={styles.buttonText}>Salvar</Text>
                 </TouchableOpacity>
               </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Day Details Modal */}
+        <Modal visible={showDayDetails} transparent animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={styles.dayDetailsModal}>
+              <View style={styles.dayDetailsHeader}>
+                <Text style={styles.dayDetailsTitle}>{selectedDate}</Text>
+                <TouchableOpacity onPress={() => setShowDayDetails(false)}>
+                  <Text style={styles.closeButton}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              <ScrollView style={styles.dayDetailsContent}>
+                {selectedDayData?.meetings?.length > 0 && (
+                  <View style={styles.detailSection}>
+                    <Text style={styles.detailSectionTitle}>📅 Reuniões ({selectedDayData.meetings.length})</Text>
+                    {selectedDayData.meetings.map((m: any, i: number) => (
+                      <Text key={i} style={styles.detailItem}>• Reunião</Text>
+                    ))}
+                  </View>
+                )}
+                {selectedDayData?.events?.length > 0 && (
+                  <View style={styles.detailSection}>
+                    <Text style={styles.detailSectionTitle}>🎉 Eventos ({selectedDayData.events.length})</Text>
+                    {selectedDayData.events.map((e: any, i: number) => (
+                      <Text key={i} style={styles.detailItem}>• {e.titulo}</Text>
+                    ))}
+                  </View>
+                )}
+                {selectedDayData?.visitas?.length > 0 && (
+                  <View style={styles.detailSection}>
+                    <Text style={styles.detailSectionTitle}>🏠 Visitas ({selectedDayData.visitas.length})</Text>
+                    {selectedDayData.visitas.map((v: any, i: number) => (
+                      <Text key={i} style={styles.detailItem}>• {v.nome}</Text>
+                    ))}
+                  </View>
+                )}
+                {selectedDayData?.birthdays?.length > 0 && (
+                  <View style={styles.detailSection}>
+                    <Text style={styles.detailSectionTitle}>🎂 Aniversários ({selectedDayData.birthdays.length})</Text>
+                    {selectedDayData.birthdays.map((b: string, i: number) => (
+                      <Text key={i} style={styles.detailItem}>• {b}</Text>
+                    ))}
+                  </View>
+                )}
+              </ScrollView>
             </View>
           </View>
         </Modal>
@@ -379,6 +471,79 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
     textAlign: 'center',
     paddingVertical: 20,
+  },
+  calendarLegend: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-around',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 8,
+  },
+  legendDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 6,
+  },
+  legendText: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontWeight: '500',
+  },
+  dayDetailsModal: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    marginHorizontal: 16,
+    marginTop: '20%',
+    maxHeight: '70%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  dayDetailsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  dayDetailsTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1f2937',
+  },
+  closeButton: {
+    fontSize: 24,
+    color: '#9ca3af',
+  },
+  dayDetailsContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  detailSection: {
+    marginBottom: 16,
+  },
+  detailSectionTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: 8,
+  },
+  detailItem: {
+    fontSize: 13,
+    color: '#6b7280',
+    marginBottom: 6,
+    paddingLeft: 8,
   },
   eventCard: {
     flexDirection: 'row',
