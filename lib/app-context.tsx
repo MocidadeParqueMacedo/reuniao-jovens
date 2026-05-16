@@ -3,6 +3,7 @@ import * as Notifications from 'expo-notifications';
 import { DB, Member, Meeting, CalEvent, Visitor, Visita, Ata, Versinho, ensureNextSundayMeeting, checkThreeConsecutiveAbsences } from './db';
 import { loadCurrentUser, loadRegisteredUsers, saveRegisteredUsers, saveCurrentUser } from './auth-persistence';
 import { ADMIN_EMAIL, ADMIN_PASSWORD } from './auth-store';
+import { useWebSocketSync } from './use-websocket-sync';
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 // Autenticação agora é apenas via Google OAuth - sem senha local
@@ -35,6 +36,15 @@ interface AppContextValue extends AuthState, AppData {
   saveVisitasComuns: (v: string[]) => Promise<void>;
   saveAtas: (v: Ata[]) => Promise<void>;
   saveVersinhos: (v: Versinho[]) => Promise<void>;
+  // Métodos para WebSocket (sincronização em tempo real)
+  setMembers: (v: Member[]) => void;
+  setMeetings: (v: Meeting[]) => void;
+  setEvents: (v: CalEvent[]) => void;
+  setVisitors: (v: Record<string, Visitor[]>) => void;
+  setVisitas: (v: Visita[]) => void;
+  setVisitasComuns: (v: string[]) => void;
+  setAtas: (v: Ata[]) => void;
+  setVersinhos: (v: Versinho[]) => void;
   checkAndNotifyAbsences: () => Promise<void>;
   // Toast
   toast: string;
@@ -107,6 +117,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => { reload(); }, [reload]);
 
+  // Inicializar sincronização WebSocket
+  useWebSocketSync();
+
   const logout = useCallback(async () => {
     // Limpar dados da sessão do AsyncStorage
     await saveCurrentUser(null);
@@ -162,6 +175,39 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setData(d => ({ ...d, versinhos: v }));
   }, []);
 
+  // Métodos para WebSocket (sem salvar no AsyncStorage, apenas atualizar estado)
+  const setMembers = useCallback((v: Member[]) => {
+    setData(d => ({ ...d, members: v }));
+  }, []);
+
+  const setMeetings = useCallback((v: Meeting[]) => {
+    setData(d => ({ ...d, meetings: v }));
+  }, []);
+
+  const setEvents = useCallback((v: CalEvent[]) => {
+    setData(d => ({ ...d, events: v }));
+  }, []);
+
+  const setVisitors = useCallback((v: Record<string, Visitor[]>) => {
+    setData(d => ({ ...d, visitors: v }));
+  }, []);
+
+  const setVisitas = useCallback((v: Visita[]) => {
+    setData(d => ({ ...d, visitas: v }));
+  }, []);
+
+  const setVisitasComuns = useCallback((v: string[]) => {
+    setData(d => ({ ...d, visitasComuns: v }));
+  }, []);
+
+  const setAtas = useCallback((v: Ata[]) => {
+    setData(d => ({ ...d, atas: v }));
+  }, []);
+
+  const setVersinhos = useCallback((v: Versinho[]) => {
+    setData(d => ({ ...d, versinhos: v }));
+  }, []);
+
   const checkAndNotifyAbsences = useCallback(async () => {
     const members = data.members;
     const meetings = data.meetings;
@@ -202,6 +248,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       reload,
       saveMembers, saveMeetings, saveEvents, saveVisitors,
       saveVisitas, saveVisitasComuns, saveAtas, saveVersinhos,
+      setMembers, setMeetings, setEvents, setVisitors,
+      setVisitas, setVisitasComuns, setAtas, setVersinhos,
       checkAndNotifyAbsences,
       toast, toastType, showToast,
     }}

@@ -219,7 +219,7 @@ function GroupList({ members, onEdit, onDelete }: { members: Member[]; onEdit: (
 
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 export default function MembrosScreen() {
-  const { members, saveMembers, autenticado, showToast } = useApp();
+  const { members, saveMembers, autenticado, showToast, setMembers } = useApp();
   const [showModal, setShowModal] = useState(false);
   const [editMember, setEditMember] = useState<Member | null>(null);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
@@ -274,6 +274,8 @@ export default function MembrosScreen() {
       showToast('✅ Membro adicionado!');
     }
     await saveMembers(updated);
+    // Sincronizar com outros usuários via WebSocket
+    setMembers(updated);
   }
 
   async function handleDelete(id: number) {
@@ -282,8 +284,11 @@ export default function MembrosScreen() {
       {
         text: 'Excluir', style: 'destructive',
         onPress: async () => {
-          await saveMembers(members.filter(m => m.id !== id));
-          showToast('🗑 Membro removido');
+          const updated = members.filter(m => m.id !== id);
+          await saveMembers(updated);
+          // Sincronizar com outros usuários via WebSocket
+          setMembers(updated);
+          showToast('🗣 Membro removido');
         },
       },
     ]);

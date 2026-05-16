@@ -1,0 +1,196 @@
+import { useEffect, useRef, useCallback } from 'react';
+import { useApp } from './app-context';
+
+interface SyncMessage {
+  type: 'sync' | 'update' | 'subscribe' | 'unsubscribe' | 'ping' | 'pong' | 'connected';
+  dataType?: string;
+  data?: any;
+  timestamp?: number;
+  clientId?: string;
+}
+
+/**
+ * Hook para sincronização em tempo real via WebSocket
+ * Conecta ao servidor WebSocket e sincroniza todos os dados automaticamente
+ */
+export function useWebSocketSync() {
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clientIdRef = useRef<string>('');
+  const {
+    setMembers,
+    setMeetings,
+    setEvents,
+    setVisitors,
+    setVisitas,
+    setVisitasComuns,
+    setAtas,
+    setVersinhos,
+  } = useApp();
+
+  // Atualizar dados no contexto
+  const updateData = useCallback(
+    (dataType: string, data: any) => {
+      switch (dataType) {
+        case 'members':
+          setMembers(data);
+          break;
+        case 'meetings':
+          setMeetings(data);
+          break;
+        case 'events':
+          setEvents(data);
+          break;
+        case 'visitors':
+          setVisitors(data);
+          break;
+        case 'visitas':
+          setVisitas(data);
+          break;
+        case 'visitasComuns':
+          setVisitasComuns(data);
+          break;
+        case 'atas':
+          setAtas(data);
+          break;
+        case 'versinhos':
+          setVersinhos(data);
+          break;
+        default:
+          console.log('⚠️ Tipo de dado desconhecido:', dataType);
+      }
+    },
+    [setMembers, setMeetings, setEvents, setVisitors, setVisitas, setVisitasComuns, setAtas, setVersinhos]
+  );
+
+  // Inscrever em todos os tipos de dados
+  const subscribeToAll = useCallback(() => {
+    const dataTypes = [
+      'members',
+      'meetings',
+      'events',
+      'visitors',
+      'visitas',
+      'visitasComuns',
+      'atas',
+      'versinhos',
+    ];
+
+    dataTypes.forEach((dataType) => {
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(
+          JSON.stringify({
+            type: 'subscribe',
+            dataType,
+            timestamp: Date.now(),
+          })
+        );
+      }
+    });
+  }, []);
+
+  // Processar mensagens recebidas
+  const handleMessage = useCallback(
+    (msg: SyncMessage) => {
+      switch (msg.type) {
+        case 'connected':
+          console.log('🔌 Cliente ID:', msg.clientId);
+          clientIdRef.current = msg.clientId || '';
+          // Se conectou, inscrever em todos os tipos de dados
+          subscribeToAll();
+          break;
+
+        case 'sync':
+        case 'update':
+          // Atualizar dados baseado no tipo
+          if (msg.dataType && msg.data) {
+            console.log(`📡 Sincronizando ${msg.dataType}:`, msg.data);
+            updateData(msg.dataType, msg.data);
+          }
+          break;
+
+        case 'ping':
+          // Responder com pong
+          if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({ type: 'pong', timestamp: Date.now() }));
+          }
+          break;
+
+        default:
+          console.log('⚠️ Tipo de mensagem desconhecido:', msg.type);
+      }
+    },
+    [updateData, subscribeToAll]
+  );
+
+  // Conectar ao WebSocket
+  const connect = useCallback(() => {
+    try {
+      // Construir URL do WebSocket
+      const protocol = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const host = typeof window !== 'undefined' ? window.location.host : 'localhost:3000';
+      const wsUrl = `${protocol}//${host}/ws`;
+
+      console.log('🔌 Conectando ao WebSocket:', wsUrl);
+
+      wsRef.current = new WebSocket(wsUrl);
+
+      wsRef.current.onopen = () => {
+        console.log('✅ WebSocket conectado!');
+      };
+
+      wsRef.current.onmessage = (event: MessageEvent) => {
+        try {
+          const msg: SyncMessage = JSON.parse(event.data);
+          handleMessage(msg);
+        } catch (error) {
+          console.error('❌ Erro ao processar mensagem WebSocket:', error);
+        }
+      };
+
+      wsRef.current.onerror = (error: Event) => {
+        console.error('❌ Erro WebSocket:', error);
+      };
+
+      wsRef.current.onclose = () => {
+        console.log('⚠️ WebSocket desconectado. Tentando reconectar...');
+        // Reconectar após 3 segundos
+        reconnectTimeoutRef.current = setTimeout(() => {
+          connect();
+        }, 3000);
+      };
+    } catch (error) {
+      console.error('❌ Erro ao conectar WebSocket:', error);
+    }
+  }, [handleMessage]);
+
+  // Enviar atualização para o servidor
+  const sendUpdate = useCallback((dataType: string, data: any) => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(
+        JSON.stringify({
+          type: 'update',
+          dataType,
+          data,
+          timestamp: Date.now(),
+        })
+      );
+    }
+  }, []);
+
+  // Conectar ao montar o componente
+  useEffect(() => {
+    connect();
+
+    return () => {
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+    };
+  }, [connect]);
+
+  return { sendUpdate, isConnected: (wsRef.current?.readyState === WebSocket.OPEN) || false };
+}

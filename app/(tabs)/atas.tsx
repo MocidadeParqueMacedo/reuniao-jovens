@@ -175,7 +175,7 @@ function ModalAtaDetalhe({ ata, members, onClose }: { ata: Ata | null; members: 
 
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 export default function AtasScreen() {
-  const { atas, members, saveAtas, autenticado, showToast } = useApp();
+  const { atas, members, saveAtas, autenticado, showToast, setAtas } = useApp();
   const [showModal, setShowModal] = useState(false);
   const [selectedAta, setSelectedAta] = useState<Ata | null>(null);
 
@@ -184,7 +184,10 @@ export default function AtasScreen() {
 
   async function handleSave(data: Omit<Ata, 'id' | 'criadaEm'>) {
     const nova: Ata = { ...data, id: Date.now(), criadaEm: new Date().toISOString() };
-    await saveAtas([...atas, nova]);
+    const updated = [...atas, nova];
+    await saveAtas(updated);
+    // Sincronizar com outros usuários via WebSocket
+    setAtas(updated);
     showToast('✅ Ata salva!');
   }
 
@@ -194,8 +197,11 @@ export default function AtasScreen() {
       {
         text: 'Excluir', style: 'destructive',
         onPress: async () => {
-          await saveAtas(atas.filter(a => a.id !== id));
-          showToast('🗑 Ata removida');
+          const updated = atas.filter(a => a.id !== id);
+          await saveAtas(updated);
+          // Sincronizar com outros usuários via WebSocket
+          setAtas(updated);
+          showToast('🗣 Ata removida');
         },
       },
     ]);

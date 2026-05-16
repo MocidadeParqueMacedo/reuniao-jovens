@@ -95,7 +95,7 @@ function MiniCalendar({ year, month, data }: any) {
 
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 export default function EventsScreen() {
-  const { events, meetings, members, visitas, saveEvents, autenticado, showToast } = useApp();
+  const { events, meetings, members, visitas, saveEvents, autenticado, showToast, setEvents } = useApp();
   const [eventTitle, setEventTitle] = useState('');
   const [eventDate, setEventDate] = useState(todayISO());
   const [showModal, setShowModal] = useState(false);
@@ -121,7 +121,10 @@ export default function EventsScreen() {
       data: eventDate,
       titulo: eventTitle,
     };
-    await saveEvents([...events, newEvent]);
+    const updated = [...events, newEvent];
+    await saveEvents(updated);
+    // Sincronizar com outros usuários via WebSocket
+    setEvents(updated);
     setEventTitle('');
     setEventDate(todayISO());
     setShowModal(false);

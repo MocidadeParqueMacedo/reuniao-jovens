@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   StyleSheet, Alert, Modal,
@@ -34,7 +34,7 @@ function PresencaScreen({
   meetingId: string;
   onBack: () => void;
 }) {
-  const { meetings, members, visitors, saveMeetings, saveVisitors, showToast } = useApp();
+  const { meetings, members, visitors, saveMeetings, saveVisitors, showToast, setMeetings, setVisitors } = useApp();
   const { isOnline } = useNetworkStatus();
   const meeting = meetings.find(m => String(m.id || m.date) === String(meetingId));
   const [presenca, setPresenca] = useState<Record<string, boolean>>({});
@@ -73,9 +73,13 @@ function PresencaScreen({
       String(m.id || m.date) === String(meetingId) ? { ...m, present } : m
     );
     await saveMeetings(updated);
+    // Sincronizar com outros usuários via WebSocket
+    setMeetings(updated);
     const allVisitors = { ...visitors };
     allVisitors[String(meetingId)] = presVisitantes;
     await saveVisitors(allVisitors);
+    // Sincronizar com outros usuários via WebSocket
+    setVisitors(allVisitors);
     showToast('✅ Presença salva!');
   }
 
@@ -359,7 +363,7 @@ function filterMembersByGroup(members: Member[], grupo: 'todos' | 'irmaos' | 'ir
 
 // ─── Main Histórico Screen ─────────────────────────────────────────────────────
 export default function HistoricoScreen() {
-  const { meetings, members, autenticado, showToast, saveMeetings, checkAndNotifyAbsences } = useApp();
+  const { meetings, members, autenticado, showToast, saveMeetings, checkAndNotifyAbsences, setMeetings } = useApp();
   const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
 
   // ─── Filtros ───────────────────────────────────────────────────────────────
@@ -397,7 +401,10 @@ export default function HistoricoScreen() {
         present: [],
         isScheduled: true,
       };
-      await saveMeetings([...meetings, newMeeting]);
+      const updated = [...meetings, newMeeting];
+      await saveMeetings(updated);
+      // Sincronizar com outros usuários via WebSocket
+      setMeetings(updated);
     }
   }
 

@@ -239,7 +239,7 @@ function VersinhoDetalhe({ v, members, onBack, onDelete }: {
 
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 export default function VersinhoScreen() {
-  const { versinhos, members, saveVersinhos, autenticado, showToast } = useApp();
+  const { versinhos, members, saveVersinhos, autenticado, showToast, setVersinhos } = useApp();
   const [showModal, setShowModal] = useState(false);
   const [selectedVersinho, setSelectedVersinho] = useState<Versinho | null>(null);
 
@@ -248,7 +248,10 @@ export default function VersinhoScreen() {
 
   async function handleSave(data: Omit<Versinho, 'id'>) {
     const novo: Versinho = { ...data, id: Date.now() };
-    await saveVersinhos([...versinhos, novo]);
+    const updated = [...versinhos, novo];
+    await saveVersinhos(updated);
+    // Sincronizar com outros usuários via WebSocket
+    setVersinhos(updated);
     showToast('✅ Versinho salvo!');
   }
 
@@ -258,9 +261,12 @@ export default function VersinhoScreen() {
       {
         text: 'Excluir', style: 'destructive',
         onPress: async () => {
-          await saveVersinhos(versinhos.filter(v => v.id !== id));
+          const updated = versinhos.filter(v => v.id !== id);
+          await saveVersinhos(updated);
+          // Sincronizar com outros usuários via WebSocket
+          setVersinhos(updated);
           setSelectedVersinho(null);
-          showToast('🗑 Versinho removido');
+          showToast('🗣 Versinho removido');
         },
       },
     ]);
