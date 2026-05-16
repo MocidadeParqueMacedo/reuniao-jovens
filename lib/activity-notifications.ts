@@ -1,3 +1,5 @@
+import { ActivityHistory } from './activity-history';
+
 /**
  * Sistema de notificações de atividade em tempo real
  */
@@ -33,6 +35,16 @@ export function unregisterActivityCallback(callback: (notification: ActivityNoti
  */
 export function emitActivityNotification(notification: ActivityNotification) {
   console.log('📢 Atividade:', notification.message);
+  
+  // Adicionar ao histórico
+  ActivityHistory.add({
+    type: notification.type,
+    message: notification.message,
+    userName: notification.userName,
+    dataType: notification.dataType,
+    timestamp: notification.timestamp,
+  });
+  
   activityCallbacks.forEach((callback) => {
     try {
       callback(notification);

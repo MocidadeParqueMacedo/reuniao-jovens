@@ -97,6 +97,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="atividades"
+        options={{
+          title: 'Atividades',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="📊" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
         name="admin"
         options={{
           title: 'Admin',
