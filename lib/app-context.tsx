@@ -4,8 +4,8 @@ import { DB, Member, Meeting, CalEvent, Visitor, Visita, Ata, Versinho, ensureNe
 import { loadCurrentUser, loadRegisteredUsers, saveRegisteredUsers, saveCurrentUser } from './auth-persistence';
 import { ADMIN_EMAIL, ADMIN_PASSWORD } from './auth-store';
 import { useWebSocketSync, registerWebSocketCallbacks } from './use-websocket-sync';
-import { useHttpPollingSync } from './use-http-polling-sync';
 import { ActivityNotification, registerActivityCallback } from './activity-notifications';
+import { HttpPollingWrapper } from '@/components/http-polling-wrapper';
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 // Autenticação agora é apenas via Google OAuth - sem senha local
@@ -237,9 +237,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Inicializar sincronização WebSocket
   useWebSocketSync();
 
-  // Inicializar HTTP polling como fallback
-  useHttpPollingSync();
-
   const checkAndNotifyAbsences = useCallback(async () => {
     const members = data.members;
     const meetings = data.meetings;
@@ -287,7 +284,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       activity, onActivityNotification,
     }}
     >
-      {!authLoading && children}
+      {!authLoading && (
+        <>
+          {children}
+          <HttpPollingWrapper />
+        </>
+      )}
     </AppContext.Provider>
   );
 }
