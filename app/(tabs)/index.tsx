@@ -51,7 +51,14 @@ function buildCalData(year: number, members: any[], events: CalEvent[], meetings
     data[`${year}-${mo}-${da}`].birthdays.push(m.nome);
   });
   events.forEach(e => { ensure(e.data); data[e.data].events.push(e); });
-  meetings.forEach(m => { ensure(m.data); data[m.data].meetings.push(m); });
+  // Reuniões usam 'date' ao invés de 'data'
+  meetings.forEach(m => { 
+    const dateKey = m.date || m.data;
+    if (dateKey) {
+      ensure(dateKey); 
+      data[dateKey].meetings.push(m);
+    }
+  });
   visitas.forEach(v => { ensure(v.data); data[v.data].visitas.push(v); });
   return data;
 }
