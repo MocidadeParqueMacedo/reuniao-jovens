@@ -1,5 +1,6 @@
 import * as Linking from "expo-linking";
 import * as ReactNative from "react-native";
+import Constants from "expo-constants";
 
 // Extract scheme from bundle ID (last segment timestamp, prefixed with "manus")
 // e.g., "space.manus.my.app.t20240115103045" -> "manus20240115103045"
@@ -42,6 +43,25 @@ export function getApiBaseUrl(): string {
     const apiHostname = hostname.replace(/^8081-/, "3000-");
     if (apiHostname !== hostname) {
       return `${protocol}//${apiHostname}`;
+    }
+  }
+
+  // On native (iOS/Android), try to derive from Expo dev server
+  if (ReactNative.Platform.OS !== "web") {
+    try {
+      const hostUri = Constants.expoConfig?.hostUri;
+      if (hostUri) {
+        // hostUri is like "8081-sandboxid.region.domain:8081"
+        // Extract hostname and replace port 8081 with 3000
+        const hostname = hostUri.split(":")[0];
+        const apiHostname = hostname.replace(/^8081-/, "3000-");
+        if (apiHostname !== hostname) {
+          console.log("[getApiBaseUrl] Derived API base URL for mobile:", `https://${apiHostname}`);
+          return `https://${apiHostname}`;
+        }
+      }
+    } catch (error) {
+      console.warn("[getApiBaseUrl] Failed to derive from Expo constants:", error);
     }
   }
 
