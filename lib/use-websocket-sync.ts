@@ -116,6 +116,8 @@ export function useWebSocketSync() {
       const apiBaseUrl = getApiBaseUrl();
       let wsUrl = '';
       
+      console.log('[WS] apiBaseUrl:', apiBaseUrl);
+      
       if (apiBaseUrl) {
         // Converter URL HTTP para WebSocket
         wsUrl = apiBaseUrl.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:') + '/ws';
@@ -123,14 +125,15 @@ export function useWebSocketSync() {
         // Fallback para localhost (desenvolvimento local)
         const protocol = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         wsUrl = `${protocol}//localhost:3000/ws`;
+        console.log('[WS] Usando fallback localhost');
       }
 
-      console.log('🔌 Conectando ao WebSocket:', wsUrl);
+      console.log('[WS] 🔌 Conectando ao WebSocket:', wsUrl);
 
       wsRef.current = new WebSocket(wsUrl);
 
       wsRef.current.onopen = () => {
-        console.log('✅ WebSocket conectado!');
+        console.log('[WS] ✅ WebSocket conectado!');
         updateGlobalWebSocketStatus('connected');
       };
 
@@ -144,20 +147,22 @@ export function useWebSocketSync() {
       };
 
       wsRef.current.onerror = (error: Event) => {
-        console.error('❌ Erro WebSocket:', error);
+        console.error('[WS] ❌ Erro WebSocket:', error);
+        console.error('[WS] readyState:', wsRef.current?.readyState);
         updateGlobalWebSocketStatus('disconnected');
       };
 
       wsRef.current.onclose = () => {
-        console.log('⚠️ WebSocket desconectado. Tentando reconectar...');
+        console.log('[WS] ⚠️ WebSocket desconectado. Tentando reconectar...');
         updateGlobalWebSocketStatus('reconnecting');
         // Reconectar após 3 segundos
         reconnectTimeoutRef.current = setTimeout(() => {
+          console.log('[WS] Tentando reconectar...');
           connect();
         }, 3000);
       };
     } catch (error) {
-      console.error('❌ Erro ao conectar WebSocket:', error);
+      console.error('[WS] ❌ Erro ao conectar WebSocket:', error);
     }
   }, [handleMessage]);
 

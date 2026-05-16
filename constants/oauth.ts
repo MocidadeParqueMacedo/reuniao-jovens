@@ -33,6 +33,7 @@ export const API_BASE_URL = env.apiBaseUrl;
 export function getApiBaseUrl(): string {
   // If API_BASE_URL is set, use it
   if (API_BASE_URL) {
+    console.log("[getApiBaseUrl] Using API_BASE_URL env:", API_BASE_URL);
     return API_BASE_URL.replace(/\/$/, "");
   }
 
@@ -42,6 +43,7 @@ export function getApiBaseUrl(): string {
     // Pattern: 8081-sandboxid.region.domain -> 3000-sandboxid.region.domain
     const apiHostname = hostname.replace(/^8081-/, "3000-");
     if (apiHostname !== hostname) {
+      console.log("[getApiBaseUrl] Derived from web hostname:", `${protocol}//${apiHostname}`);
       return `${protocol}//${apiHostname}`;
     }
   }
@@ -50,15 +52,24 @@ export function getApiBaseUrl(): string {
   if (ReactNative.Platform.OS !== "web") {
     try {
       const hostUri = Constants.expoConfig?.hostUri;
+      console.log("[getApiBaseUrl] Mobile - hostUri:", hostUri);
+      console.log("[getApiBaseUrl] Platform:", ReactNative.Platform.OS);
+      
       if (hostUri) {
         // hostUri is like "8081-sandboxid.region.domain:8081"
         // Extract hostname and replace port 8081 with 3000
         const hostname = hostUri.split(":")[0];
         const apiHostname = hostname.replace(/^8081-/, "3000-");
+        console.log("[getApiBaseUrl] hostname:", hostname);
+        console.log("[getApiBaseUrl] apiHostname:", apiHostname);
+        
         if (apiHostname !== hostname) {
-          console.log("[getApiBaseUrl] Derived API base URL for mobile:", `https://${apiHostname}`);
-          return `https://${apiHostname}`;
+          const result = `https://${apiHostname}`;
+          console.log("[getApiBaseUrl] Derived API base URL for mobile:", result);
+          return result;
         }
+      } else {
+        console.log("[getApiBaseUrl] hostUri is null/undefined");
       }
     } catch (error) {
       console.warn("[getApiBaseUrl] Failed to derive from Expo constants:", error);
@@ -66,6 +77,7 @@ export function getApiBaseUrl(): string {
   }
 
   // Fallback to empty (will use relative URL)
+  console.log("[getApiBaseUrl] Returning empty string - will use fallback");
   return "";
 }
 
