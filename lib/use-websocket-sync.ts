@@ -1,5 +1,4 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { useApp } from './app-context';
 
 interface SyncMessage {
   type: 'sync' | 'update' | 'subscribe' | 'unsubscribe' | 'ping' | 'pong' | 'connected';
@@ -7,6 +6,25 @@ interface SyncMessage {
   data?: any;
   timestamp?: number;
   clientId?: string;
+}
+
+// Callbacks para atualizar dados (será registrado pelo AppProvider)
+let updateCallbacks: {
+  members?: (data: any) => void;
+  meetings?: (data: any) => void;
+  events?: (data: any) => void;
+  visitors?: (data: any) => void;
+  visitas?: (data: any) => void;
+  visitasComuns?: (data: any) => void;
+  atas?: (data: any) => void;
+  versinhos?: (data: any) => void;
+} = {};
+
+/**
+ * Registra callbacks para sincronização WebSocket
+ */
+export function registerWebSocketCallbacks(callbacks: typeof updateCallbacks) {
+  updateCallbacks = callbacks;
 }
 
 /**
@@ -17,50 +35,16 @@ export function useWebSocketSync() {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clientIdRef = useRef<string>('');
-  const {
-    setMembers,
-    setMeetings,
-    setEvents,
-    setVisitors,
-    setVisitas,
-    setVisitasComuns,
-    setAtas,
-    setVersinhos,
-  } = useApp();
 
-  // Atualizar dados no contexto
+  // Atualizar dados através dos callbacks registrados
   const updateData = useCallback(
     (dataType: string, data: any) => {
-      switch (dataType) {
-        case 'members':
-          setMembers(data);
-          break;
-        case 'meetings':
-          setMeetings(data);
-          break;
-        case 'events':
-          setEvents(data);
-          break;
-        case 'visitors':
-          setVisitors(data);
-          break;
-        case 'visitas':
-          setVisitas(data);
-          break;
-        case 'visitasComuns':
-          setVisitasComuns(data);
-          break;
-        case 'atas':
-          setAtas(data);
-          break;
-        case 'versinhos':
-          setVersinhos(data);
-          break;
-        default:
-          console.log('⚠️ Tipo de dado desconhecido:', dataType);
+      const callback = updateCallbacks[dataType as keyof typeof updateCallbacks];
+      if (callback) {
+        callback(data);
       }
     },
-    [setMembers, setMeetings, setEvents, setVisitors, setVisitas, setVisitasComuns, setAtas, setVersinhos]
+    []
   );
 
   // Inscrever em todos os tipos de dados

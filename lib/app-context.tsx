@@ -3,7 +3,7 @@ import * as Notifications from 'expo-notifications';
 import { DB, Member, Meeting, CalEvent, Visitor, Visita, Ata, Versinho, ensureNextSundayMeeting, checkThreeConsecutiveAbsences } from './db';
 import { loadCurrentUser, loadRegisteredUsers, saveRegisteredUsers, saveCurrentUser } from './auth-persistence';
 import { ADMIN_EMAIL, ADMIN_PASSWORD } from './auth-store';
-import { useWebSocketSync } from './use-websocket-sync';
+import { useWebSocketSync, registerWebSocketCallbacks } from './use-websocket-sync';
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 // Autenticação agora é apenas via Google OAuth - sem senha local
@@ -117,9 +117,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => { reload(); }, [reload]);
 
-  // Inicializar sincronização WebSocket
-  useWebSocketSync();
-
   const logout = useCallback(async () => {
     // Limpar dados da sessão do AsyncStorage
     await saveCurrentUser(null);
@@ -207,6 +204,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const setVersinhos = useCallback((v: Versinho[]) => {
     setData(d => ({ ...d, versinhos: v }));
   }, []);
+
+  // Registrar callbacks para WebSocket
+  useEffect(() => {
+    registerWebSocketCallbacks({
+      members: setMembers,
+      meetings: setMeetings,
+      events: setEvents,
+      visitors: setVisitors,
+      visitas: setVisitas,
+      visitasComuns: setVisitasComuns,
+      atas: setAtas,
+      versinhos: setVersinhos,
+    });
+  }, [setMembers, setMeetings, setEvents, setVisitors, setVisitas, setVisitasComuns, setAtas, setVersinhos]);
+
+  // Inicializar sincronização WebSocket
+  useWebSocketSync();
 
   const checkAndNotifyAbsences = useCallback(async () => {
     const members = data.members;
