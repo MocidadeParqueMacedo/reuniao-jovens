@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { getApiBaseUrl } from '@/constants/oauth';
+import { updateGlobalWebSocketStatus } from './use-websocket-status';
 
 interface SyncMessage {
   type: 'sync' | 'update' | 'subscribe' | 'unsubscribe' | 'ping' | 'pong' | 'connected';
@@ -130,6 +131,7 @@ export function useWebSocketSync() {
 
       wsRef.current.onopen = () => {
         console.log('✅ WebSocket conectado!');
+        updateGlobalWebSocketStatus('connected');
       };
 
       wsRef.current.onmessage = (event: MessageEvent) => {
@@ -143,10 +145,12 @@ export function useWebSocketSync() {
 
       wsRef.current.onerror = (error: Event) => {
         console.error('❌ Erro WebSocket:', error);
+        updateGlobalWebSocketStatus('disconnected');
       };
 
       wsRef.current.onclose = () => {
         console.log('⚠️ WebSocket desconectado. Tentando reconectar...');
+        updateGlobalWebSocketStatus('reconnecting');
         // Reconectar após 3 segundos
         reconnectTimeoutRef.current = setTimeout(() => {
           connect();
@@ -173,6 +177,7 @@ export function useWebSocketSync() {
 
   // Conectar ao montar o componente
   useEffect(() => {
+    updateGlobalWebSocketStatus('connecting');
     connect();
 
     return () => {
