@@ -1,11 +1,13 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, FlatList,
-  Pressable, Modal, Alert,
+  Pressable, Modal, Alert, Share,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { ScreenContainer } from '@/components/screen-container';
 import { ActivityHistory, ActivityRecord } from '@/lib/activity-history';
+import { ExportService } from '@/lib/export-service';
+import { CriticalNotifications, NotificationPreferences } from '@/lib/critical-notifications';
 
 const ACTIVITY_ICONS: Record<ActivityRecord['type'], string> = {
   member_added: '👤',
@@ -40,13 +42,22 @@ export default function AtividadesScreen() {
   const [selectedRecord, setSelectedRecord] = useState<ActivityRecord | null>(null);
   const [page, setPage] = useState(1);
   const pageSize = 20;
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showPreferences, setShowPreferences] = useState(false);
+  const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>(CriticalNotifications.getPreferences());
 
-  // Carregar histórico ao focar
+  // Carregar histórico e preferências ao focar
   useFocusEffect(
     useCallback(() => {
       loadHistory();
+      loadPreferences();
     }, [])
   );
+
+  async function loadPreferences() {
+    await CriticalNotifications.loadPreferences();
+    setNotifPrefs(CriticalNotifications.getPreferences());
+  }
 
   async function loadHistory() {
     await ActivityHistory.load();
@@ -94,6 +105,40 @@ export default function AtividadesScreen() {
         },
       },
     ]);
+  }
+
+  async function handleExportCSV() {
+    try {
+      const csv = ExportService.generateCSV(filteredRecords);
+      const fileName = ExportService.generateFileName('csv');
+      await Share.share({
+        message: csv,
+        title: fileName,
+      });
+      setShowExportMenu(false);
+    } catch (error) {
+      Alert.alert('Erro', 'Não foi possível exportar CSV');
+    }
+  }
+
+  async function handleExportJSON() {
+    try {
+      const json = ExportService.generateJSON(filteredRecords);
+      const fileName = ExportService.generateFileName('json');
+      await Share.share({
+        message: json,
+        title: fileName,
+      });
+      setShowExportMenu(false);
+    } catch (error) {
+      Alert.alert('Erro', 'Não foi possível exportar JSON');
+    }
+  }
+
+  async function handleSavePreferences() {
+    await CriticalNotifications.savePreferences(notifPrefs);
+    Alert.alert('Sucesso', 'Preferências de notificação atualizadas!');
+    setShowPreferences(false);
   }
 
   const stats = ActivityHistory.getStats();

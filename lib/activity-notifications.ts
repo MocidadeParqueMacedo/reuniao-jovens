@@ -1,4 +1,5 @@
 import { ActivityHistory } from './activity-history';
+import { CriticalNotifications } from './critical-notifications';
 
 /**
  * Sistema de notificações de atividade em tempo real
@@ -44,6 +45,9 @@ export function emitActivityNotification(notification: ActivityNotification) {
     dataType: notification.dataType,
     timestamp: notification.timestamp,
   });
+  
+  // Enviar notificação push se for atividade crítica
+  CriticalNotifications.sendNotification(notification);
   
   activityCallbacks.forEach((callback) => {
     try {
