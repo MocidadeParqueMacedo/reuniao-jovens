@@ -1,4 +1,3 @@
-import * as Linking from "expo-linking";
 import * as ReactNative from "react-native";
 import Constants from "expo-constants";
 
@@ -26,18 +25,50 @@ export const OWNER_NAME = env.ownerName;
 export const API_BASE_URL = env.apiBaseUrl;
 
 /**
- * Get the API base URL, deriving from current hostname if not set.
- * Metro runs on 8081, API server runs on 3000.
- * URL pattern: https://PORT-sandboxid.region.domain
+ * Get the API base URL for server communication.
+ * Priority:
+ * 1. EXPO_PUBLIC_API_BASE_URL environment variable (for production/tunnels)
+ * 2. LAN IP detection (for development on same network)
+ * 3. Manus sandbox URL (web only)
+ * 4. Empty string (fallback)
  */
 export function getApiBaseUrl(): string {
-  // If API_BASE_URL is set, use it
+  // 1. If API_BASE_URL is explicitly set, use it (highest priority)
   if (API_BASE_URL) {
-    console.log("[getApiBaseUrl] Using API_BASE_URL env:", API_BASE_URL);
+    console.log("[getApiBaseUrl] Using EXPO_PUBLIC_API_BASE_URL env:", API_BASE_URL);
     return API_BASE_URL.replace(/\/$/, "");
   }
 
-  // On web, derive from current hostname by replacing port 8081 with 3000
+  // 2. On native (iOS/Android), try to detect LAN IP
+  if (ReactNative.Platform.OS !== "web") {
+    try {
+      const hostUri = Constants.expoConfig?.hostUri;
+      console.log("[getApiBaseUrl] Mobile - hostUri:", hostUri);
+      
+      if (hostUri) {
+        // hostUri format: "192.168.x.x:8081" or "8081-sandbox.region.manus.computer:8081"
+        const hostname = hostUri.split(":")[0];
+        
+        // If it's a LAN IP (192.168.x.x or 10.x.x.x), use it with port 3000
+        if (/^(192\.168|10\.)/.test(hostname)) {
+          const result = `http://${hostname}:3000`;
+          console.log("[getApiBaseUrl] Detected LAN IP, using:", result);
+          return result;
+        }
+        
+        // If it's a manus.computer domain, it's sandbox preview - use as-is
+        if (hostname.includes("manus.computer")) {
+          const result = `https://${hostname}:3000`;
+          console.log("[getApiBaseUrl] Detected Manus sandbox, using:", result);
+          return result;
+        }
+      }
+    } catch (error) {
+      console.warn("[getApiBaseUrl] Failed to detect LAN IP:", error);
+    }
+  }
+
+  // 3. On web, derive from current hostname (sandbox preview)
   if (ReactNative.Platform.OS === "web" && typeof window !== "undefined" && window.location) {
     const { protocol, hostname } = window.location;
     // Pattern: 8081-sandboxid.region.domain -> 3000-sandboxid.region.domain
@@ -48,31 +79,8 @@ export function getApiBaseUrl(): string {
     }
   }
 
-  // On native (iOS/Android), try to derive from Expo dev server
-  if (ReactNative.Platform.OS !== "web") {
-    try {
-      const hostUri = Constants.expoConfig?.hostUri;
-      console.log("[getApiBaseUrl] Mobile - hostUri:", hostUri);
-      console.log("[getApiBaseUrl] Platform:", ReactNative.Platform.OS);
-      
-      if (hostUri) {
-        // hostUri is like "8081-sandboxid.region.domain:8081"
-        // Use the same hostname with port 8081 (API server runs on same port as Metro)
-        const hostname = hostUri.split(":")[0];
-        const result = `https://${hostname}`;
-        console.log("[getApiBaseUrl] hostname:", hostname);
-        console.log("[getApiBaseUrl] Derived API base URL for mobile:", result);
-        return result;
-      } else {
-        console.log("[getApiBaseUrl] hostUri is null/undefined");
-      }
-    } catch (error) {
-      console.warn("[getApiBaseUrl] Failed to derive from Expo constants:", error);
-    }
-  }
-
-  // Fallback to empty (will use relative URL)
-  console.log("[getApiBaseUrl] Returning empty string - will use fallback");
+  // 4. Fallback to empty (will use relative URL)
+  console.log("[getApiBaseUrl] No API base URL found - using fallback");
   return "";
 }
 
@@ -83,76 +91,17 @@ const encodeState = (value: string) => {
   if (typeof globalThis.btoa === "function") {
     return globalThis.btoa(value);
   }
-  const BufferImpl = (globalThis as Record<string, any>).Buffer;
-  if (BufferImpl) {
-    return BufferImpl.from(value, "utf-8").toString("base64");
-  }
-  return value;
+  return Buffer.from(value).toString("base64");
 };
 
-/**
- * Get the redirect URI for OAuth callback.
- * - Web: uses API server callback endpoint
- * - Native: uses deep link scheme
- */
-export const getRedirectUri = () => {
-  if (ReactNative.Platform.OS === "web") {
-    return `${getApiBaseUrl()}/api/oauth/callback`;
-  } else {
-    return Linking.createURL("/oauth/callback", {
-      scheme: env.deepLinkScheme,
-    });
+const decodeState = (value: string) => {
+  if (typeof globalThis.atob === "function") {
+    return globalThis.atob(value);
   }
+  return Buffer.from(value, "base64").toString("utf-8");
 };
 
-export const getLoginUrl = () => {
-  const redirectUri = getRedirectUri();
-  const state = encodeState(redirectUri);
-
-  const url = new URL(`${OAUTH_PORTAL_URL}/app-auth`);
-  url.searchParams.set("appId", APP_ID);
-  url.searchParams.set("redirectUri", redirectUri);
-  url.searchParams.set("state", state);
-  url.searchParams.set("type", "signIn");
-
-  return url.toString();
+export const oauth = {
+  encodeState,
+  decodeState,
 };
-
-/**
- * Start OAuth login flow.
- *
- * On native platforms (iOS/Android), open the system browser directly so
- * the OAuth callback returns via deep link to the app.
- *
- * On web, this simply redirects to the login URL.
- *
- * @returns Always null, the callback is handled via deep link.
- */
-export async function startOAuthLogin(): Promise<string | null> {
-  const loginUrl = getLoginUrl();
-
-  if (ReactNative.Platform.OS === "web") {
-    // On web, just redirect
-    if (typeof window !== "undefined") {
-      window.location.href = loginUrl;
-    }
-    return null;
-  }
-
-  const supported = await Linking.canOpenURL(loginUrl);
-  if (!supported) {
-    console.warn("[OAuth] Cannot open login URL: URL scheme not supported");
-    // 可考虑抛出错误或返回错误状态，让调用方处理
-    return null;
-  }
-
-  try {
-    await Linking.openURL(loginUrl);
-  } catch (error) {
-    console.error("[OAuth] Failed to open login URL:", error);
-    // 可考虑抛出错误让调用方处理
-  }
-
-  // The OAuth callback will reopen the app via deep link.
-  return null;
-}
