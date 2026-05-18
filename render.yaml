@@ -3,8 +3,5 @@ services:
     name: reuniao-jovens
     env: node
     plan: free
-    buildCommand: npm install -g pnpm && pnpm install && pnpm run build
+    buildCommand: ./build.sh
     startCommand: pnpm start
-    envVars:
-      - key: NODE_ENV
-        value: production
