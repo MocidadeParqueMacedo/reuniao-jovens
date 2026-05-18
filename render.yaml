@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: reuniao-jovens
+    env: node
+    plan: free
+    buildCommand: pnpm install && pnpm run build
+    startCommand: pnpm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: DRIZZLE_DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: OAUTH_SERVER_URL
+        sync: false
+      - key: OWNER_NAME
+        sync: false
+      - key: OWNER_OPEN_ID
+        sync: false
+      - key: EXPO_PUBLIC_OAUTH_SERVER_URL
+        sync: false
+      - key: EXPO_PUBLIC_GOOGLE_CLIENT_ID
+        sync: false
